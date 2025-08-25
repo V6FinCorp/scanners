@@ -1,0 +1,29 @@
+{
+  "api_settings": {
+    "base_url": "https://api.upstox.com/v3",
+    "api_version": "3.0"
+  },
+  "scanner_settings": {
+    "symbols_to_scan": [
+      "RELIANCE"
+    ],
+    "timeframes": "15,30,60",
+    "data_source": "intraday_live"
+  },
+  "rsi_parameters": {
+    "rsi_period": 14,
+    "overbought_level": 70,
+    "oversold_level": 30
+  },
+  "output_settings": {
+    "timestamp_format": "ISO",
+    "show_trend": true,
+    "show_signal": true,
+    "alert_on_levels": true
+  },
+  "error_handling": {
+    "placeholder_value": "NA",
+    "max_retries": 3,
+    "timeout_seconds": 30
+  }
+}

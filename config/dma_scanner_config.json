@@ -1,0 +1,6 @@
+{
+  "scanner_settings": {
+    "symbols_to_scan": ["RELIANCE"],
+    "dma_periods": "10,20,50,100"
+  }
+}
