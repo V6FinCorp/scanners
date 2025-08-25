@@ -63,4 +63,6 @@ def dashboard():
     return render_template_string(TEMPLATE, rsi_output=rsi_output, dma_output=dma_output, ema_output=ema_output)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Bind to 0.0.0.0 and use PORT environment variable for platform compatibility (Railway, Heroku, etc.)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
