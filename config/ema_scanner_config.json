@@ -1,8 +1,0 @@
-{
-  "scanner_settings": {
-    "symbols_to_scan": ["RELIANCE"],
-    "ema_periods": "9,15",
-    "ema_intervals": ["15"],
-    "num_days": 1
-  }
-}

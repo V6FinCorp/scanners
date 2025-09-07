@@ -318,7 +318,7 @@ def scanner_status():
 def get_symbols():
     """Get available symbols from JSON file"""
     try:
-        symbols_file = os.path.join(os.path.dirname(__file__), 'config', 'symbols_for_db.json')
+        symbols_file = os.path.join(SCANNERS_DIR, 'config', 'symbols_for_db.json')
         if os.path.exists(symbols_file):
             with open(symbols_file, 'r') as f:
                 data = json.load(f)
