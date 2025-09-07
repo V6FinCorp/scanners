@@ -8,9 +8,11 @@ A comprehensive web dashboard for running and visualizing technical analysis sca
 - **Multiple Scanners**: Support for RSI, EMA, and DMA analysis
 - **Real-time Execution**: Run scanners directly from the web interface
 - **Parameter Customization**: Configure scanner parameters through the UI
-- **Data Visualization**: Chart visualization of price and indicator data
+- **Data Visualization**: Chart visualization of price and indicator data with Line/Candlestick toggle
+- **Collapsible Parameters**: Clean, collapsible scanner parameters section
 - **CSV Export**: Export results to CSV files
 - **API Backend**: RESTful API for scanner execution
+- **Railway.app Ready**: Configured for easy deployment on Railway.app
 
 ## 📊 Available Scanners
 
@@ -50,19 +52,20 @@ A comprehensive web dashboard for running and visualizing technical analysis sca
 ├── dashboard.html              # Main dashboard HTML interface
 ├── dashboard_server.py        # Flask server with API endpoints
 ├── requirements.txt            # Python dependencies
+├── railway.json               # Railway.app deployment config
 ├── scanners/                   # Scanner implementations
 │   ├── rsi_scanner.py         # RSI scanner
 │   ├── ema_scanner.py         # EMA scanner
 │   ├── dma_scanner.py         # DMA scanner
+│   ├── rsi.pine.txt          # TradingView Pine script
+│   ├── data_loader/           # Data loading utilities
 │   └── config/                # Scanner configurations
 │       ├── rsi_config.json
 │       ├── ema_config.json
-│       └── dma_config.json
-└── data/                      # Output data directory
-    └── [SYMBOL]/              # Symbol-specific data
-        ├── [SYMBOL]_rsi_data.csv
-        ├── [SYMBOL]_ema_data.csv
-        └── [SYMBOL]_dma_data.csv
+│       ├── dma_config.json
+│       └── symbols_for_db.json
+├── templates/                  # Flask templates
+└── .gitignore                 # Git ignore rules
 ```
 
 ## 🔧 Configuration
