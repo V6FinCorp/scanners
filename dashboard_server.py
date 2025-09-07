@@ -13,7 +13,7 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-# Import scanner manager from current directory (since we're now in scanners folder)
+# Import scanner manager from current directory (repository root)
 try:
     from scanner_manager import ScannerManager
 except ImportError:
