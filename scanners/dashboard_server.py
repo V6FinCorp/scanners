@@ -93,7 +93,7 @@ if __name__ == '__main__':
     print("Starting Trading Scanners Dashboard Server...")
     print(f"Current working directory: {os.getcwd()}")
     print(f"Python executable: {sys.executable}")
-    print(f"Scanners directory: {os.path.join(os.path.dirname(__file__), 'scanners')}")
+    print(f"Scanners directory: {os.path.dirname(__file__)}")
 
     # Create templates directory and copy dashboard (now in same directory)
     templates_dir = os.path.join(os.path.dirname(__file__), 'templates')

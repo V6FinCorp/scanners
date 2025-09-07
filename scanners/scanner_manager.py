@@ -194,7 +194,7 @@ class ScannerManager:
 
             # Price data - include OHLC for candlestick charts
             if 'open' in chart_df.columns and 'high' in chart_df.columns and 'low' in chart_df.columns:
-                ohlc_data = chart_df[['open', 'high', 'low', 'close']].fillna(method='ffill').values.tolist()
+                ohlc_data = chart_df[['open', 'high', 'low', 'close']].ffill().values.tolist()
                 print(f"OHLC data sample: {ohlc_data[:3]}")  # Debug: print first 3 OHLC entries
                 datasets.append({
                     'label': 'OHLC',
@@ -206,7 +206,7 @@ class ScannerManager:
                 })
 
             # Also keep the close price line for line charts
-            close_data = chart_df['close'].fillna(method='ffill').tolist()
+            close_data = chart_df['close'].ffill().tolist()
             datasets.append({
                 'label': 'Close Price',
                 'data': close_data,
@@ -224,7 +224,7 @@ class ScannerManager:
 
                 for i, period in enumerate(rsi_periods):
                     if f'rsi_{period}' in chart_df.columns:
-                        rsi_data = chart_df[f'rsi_{period}'].fillna(method='ffill').tolist()
+                        rsi_data = chart_df[f'rsi_{period}'].ffill().tolist()
                         datasets.append({
                             'label': f'RSI({period})',
                             'data': rsi_data,
