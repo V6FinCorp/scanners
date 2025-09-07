@@ -1,0 +1,14 @@
+{
+    "symbols": [
+        "RELIANCE"
+    ],
+    "days_fallback_threshold": 200,
+    "rsi_periods": [
+        15,
+        30,
+        60
+    ],
+    "base_timeframe": "15mins",
+    "default_timeframe": "15mins",
+    "days_to_list": 2
+}
