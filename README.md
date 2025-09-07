@@ -33,39 +33,55 @@ A comprehensive web dashboard for running and visualizing technical analysis sca
 
 ## 🛠️ Installation & Setup
 
-1. **Install Dependencies:**
+1. **Navigate to scanners folder:**
+   ```bash
+   cd scanners
+   ```
+
+2. **Install Dependencies:**
    ```bash
    pip install -r requirements.txt
    ```
 
-2. **Start the Dashboard Server:**
+3. **Start the Dashboard Server:**
    ```bash
    python dashboard_server.py
    ```
 
-3. **Access the Dashboard:**
+4. **Access the Dashboard:**
    Open your browser and navigate to: `http://localhost:5000`
 
 ## 📁 Project Structure
 
+**Everything is now organized inside the `scanners/` folder:**
+
 ```
+scanners/
 ├── dashboard.html              # Main dashboard HTML interface
 ├── dashboard_server.py        # Flask server with API endpoints
 ├── requirements.txt            # Python dependencies
 ├── railway.json               # Railway.app deployment config
-├── scanners/                   # Scanner implementations
-│   ├── rsi_scanner.py         # RSI scanner
-│   ├── ema_scanner.py         # EMA scanner
-│   ├── dma_scanner.py         # DMA scanner
-│   ├── rsi.pine.txt          # TradingView Pine script
-│   ├── data_loader/           # Data loading utilities
-│   └── config/                # Scanner configurations
-│       ├── rsi_config.json
-│       ├── ema_config.json
-│       ├── dma_config.json
-│       └── symbols_for_db.json
-├── templates/                  # Flask templates
-└── .gitignore                 # Git ignore rules
+├── Procfile                    # Railway deployment configuration
+├── scanner_manager.py          # Central scanner management logic
+├── rsi_scanner.py             # RSI scanner implementation
+├── ema_scanner.py             # EMA scanner implementation
+├── dma_scanner.py             # DMA scanner implementation
+├── rsi.pine.txt              # TradingView Pine script
+├── templates/                 # Flask templates
+│   └── dashboard.html
+├── config/                    # Scanner configurations
+│   ├── rsi_config.json
+│   ├── ema_config.json
+│   ├── dma_config.json
+│   └── symbols_for_db.json
+├── data/                      # Scanner output data
+│   └── [SYMBOL]/             # Symbol-specific data folders
+└── data_loader/              # Data loading utilities
+    ├── data_loader.py
+    └── config/
+        ├── instrument_mapping.json
+        ├── NSE.json.gz
+        └── run_summary.json
 ```
 
 ## 🔧 Configuration
@@ -205,6 +221,9 @@ For production deployment:
 
 1. **Railway/Render/Heroku:**
    ```bash
+   # Navigate to scanners folder
+   cd scanners
+
    # Set environment variables
    export FLASK_ENV=production
    export PORT=5000
@@ -217,32 +236,13 @@ For production deployment:
    ```dockerfile
    FROM python:3.9-slim
    WORKDIR /app
-   COPY requirements.txt .
+   COPY scanners/ .
    RUN pip install -r requirements.txt
-   COPY . .
    CMD ["python", "dashboard_server.py"]
    ```
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## 📝 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🆘 Support
-
-For issues and questions:
-1. Check the configuration files
-2. Verify API connectivity
-3. Check scanner logs
-4. Review error messages in the dashboard
-
----
-
-**Built with ❤️ for technical analysis enthusiasts**
+3. **Railway.app (Recommended):**
+   - Point Railway to the `scanners/` folder
+   - All deployment files are already configured in `scanners/`
+   - Railway will automatically use `Procfile` and `railway.json`
+  
