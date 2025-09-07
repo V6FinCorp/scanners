@@ -319,8 +319,9 @@ def run_rsi_scanner():
             print(f"Note: RSI values calculated on their respective timeframes.")
 
         # Save data with RSI calculations to CSV file
-        os.makedirs(f"data/{symbol}", exist_ok=True)
-        csv_path = f"data/{symbol}/{symbol}_multi_timeframe_rsi_data.csv"
+        data_dir = os.path.join(os.path.dirname(__file__), 'data', symbol)
+        os.makedirs(data_dir, exist_ok=True)
+        csv_path = os.path.join(data_dir, f'{symbol}_multi_timeframe_rsi_data.csv')
 
         # Replace NaN values with None for better CSV handling
         csv_df = base_df.copy()
