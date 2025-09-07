@@ -1,0 +1,122 @@
+"""
+Trading Scanners Dashboard Server
+Serves the HTML dashboard and handles scanner execution via API endpoints.
+"""
+
+import os
+import json
+import sys
+import shutil
+from flask import Flask, render_template, request, jsonify
+from flask_cors import CORS
+
+app = Flask(__name__)
+CORS(app)
+
+# Import scanner manager from current directory (since we're now in scanners folder)
+try:
+    from scanner_manager import ScannerManager
+except ImportError:
+    print("Warning: Could not import ScannerManager")
+    ScannerManager = None
+
+# Initialize scanner manager
+if ScannerManager:
+    scanner_manager = ScannerManager()
+else:
+    scanner_manager = None
+    print("Error: ScannerManager not available")
+
+@app.route('/')
+def dashboard():
+    """Serve the main dashboard"""
+    return render_template('dashboard.html')
+
+@app.route('/api/run-scanner', methods=['POST'])
+def run_scanner():
+    """API endpoint to run a scanner"""
+    if not scanner_manager:
+        return jsonify({'error': 'Scanner manager not available'}), 500
+        
+    try:
+        data = request.get_json()
+
+        scanner_type = data.get('scanner', 'rsi')
+        symbols = data.get('symbols', ['RELIANCE'])
+        base_timeframe = data.get('baseTimeframe', '15mins')
+        days_to_list = data.get('daysToList', 2)
+
+        # Extract additional parameters
+        kwargs = {
+            'daysFallbackThreshold': data.get('daysFallbackThreshold', 200),
+            'rsiPeriods': data.get('rsiPeriods', [15, 30, 60]),
+            'emaPeriods': data.get('emaPeriods', [9, 15, 65, 200]),
+            'dmaPeriods': data.get('dmaPeriods', [10, 20, 50])
+        }
+
+        # Run scanner using scanner manager
+        result = scanner_manager.run_scanner(
+            scanner_type=scanner_type,
+            symbols=symbols,
+            base_timeframe=base_timeframe,
+            days_to_list=days_to_list,
+            **kwargs
+        )
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/scanner-status')
+def scanner_status():
+    """Get status of available scanners"""
+    if not scanner_manager:
+        return jsonify({'error': 'Scanner manager not available'}), 500
+    return jsonify(scanner_manager.get_scanner_status())
+
+@app.route('/api/symbols')
+def get_symbols():
+    """Get available symbols from JSON file"""
+    if not scanner_manager:
+        return jsonify({'error': 'Scanner manager not available'}), 500
+    return jsonify(scanner_manager.get_symbols())
+
+@app.route('/api/scanner-results/<scanner_type>')
+def get_scanner_results(scanner_type):
+    """Get stored results for a specific scanner type"""
+    if not scanner_manager:
+        return jsonify({'error': 'Scanner manager not available'}), 500
+    return jsonify(scanner_manager.get_scanner_results(scanner_type))
+
+if __name__ == '__main__':
+    print("Starting Trading Scanners Dashboard Server...")
+    print(f"Current working directory: {os.getcwd()}")
+    print(f"Python executable: {sys.executable}")
+    print(f"Scanners directory: {os.path.join(os.path.dirname(__file__), 'scanners')}")
+
+    # Create templates directory and copy dashboard (now in same directory)
+    templates_dir = os.path.join(os.path.dirname(__file__), 'templates')
+    os.makedirs(templates_dir, exist_ok=True)
+
+    # Copy dashboard.html to templates (now in same directory)
+    dashboard_src = os.path.join(os.path.dirname(__file__), 'dashboard.html')
+    dashboard_dst = os.path.join(templates_dir, 'dashboard.html')
+
+    if os.path.exists(dashboard_src):
+        shutil.copy2(dashboard_src, dashboard_dst)
+        print("Dashboard template copied successfully")
+    else:
+        print("Warning: dashboard.html not found")
+
+    # Get port from environment variable (Railway.app)
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_ENV') != 'production'
+
+    print("Starting Trading Scanners Dashboard Server...")
+    print(f"Dashboard available at: http://localhost:{port}")
+    print("API endpoints:")
+    print("   POST /api/run-scanner - Run a scanner")
+    print("   GET  /api/scanner-status - Get scanner status")
+
+    app.run(debug=debug, host='0.0.0.0', port=port)

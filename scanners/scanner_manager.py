@@ -16,6 +16,7 @@ class ScannerManager:
 
     def __init__(self):
         self.scanners_dir = os.path.dirname(__file__)
+        # Since we're now inside scanners folder, the paths are relative to current directory
         self.results_storage = {
             'rsi': {'results': None, 'output': '', 'chart_data': None, 'last_run': None},
             'ema': {'results': None, 'output': '', 'chart_data': None, 'last_run': None},
