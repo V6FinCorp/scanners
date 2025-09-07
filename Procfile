@@ -1,1 +1,1 @@
-web: python run_scanners_server.py
+web: python dashboard_server.py
