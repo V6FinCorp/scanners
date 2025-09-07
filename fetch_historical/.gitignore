@@ -1,0 +1,35 @@
+# Historical data files (should not be in repository)
+historical_data/
+*.csv
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Configuration files that may contain sensitive data
+config.py
+NSE.json.gz
+
+# Environment files
+.env
+.env.local
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
