@@ -138,6 +138,9 @@ data/
 # Fetch historical (separate repository)
 fetch_historical/
 
+# Keep instrument mapping file (essential for scanners)
+!data_loader/config/instrument_mapping.json
+
 # Logs
 *.log
 logs/
