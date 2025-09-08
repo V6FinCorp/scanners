@@ -9,6 +9,6 @@
         200
     ],
     "base_timeframe": "15mins",
-    "days_to_list": 2,
+    "days_to_list": 4,
     "days_fallback_threshold": 200
 }

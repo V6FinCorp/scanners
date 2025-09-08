@@ -208,7 +208,7 @@
                 </button>
             </div>
 
-            <div id="scannerContent" class="mt-3 transition-all duration-300 ease-in-out">
+            <div id="scannerContent" class="scanner-content expanded transition-all duration-300 ease-in-out">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 compact-grid">
                     <!-- Scanner Type -->
                     <div>
@@ -270,6 +270,22 @@
                                 <label class="block compact-label font-medium text-gray-700 dark:text-gray-300">Max Days</label>
                                 <input type="number" id="rsiDaysFallback" value="200" min="10" max="500"
                                        class="parameter-input compact-input w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 compact-grid mt-3">
+                            <div>
+                                <label class="block compact-label font-medium text-gray-700 dark:text-gray-300">
+                                    <span class="text-red-600 dark:text-red-400">Overbought</span> Level
+                                </label>
+                                <input type="number" id="rsiOverbought" value="70" min="50" max="90" step="1"
+                                       class="parameter-input compact-input w-full px-2 py-1.5 border border-red-300 dark:border-red-600 rounded-md focus:outline-none bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200">
+                            </div>
+                            <div>
+                                <label class="block compact-label font-medium text-gray-700 dark:text-gray-300">
+                                    <span class="text-green-600 dark:text-green-400">Oversold</span> Level
+                                </label>
+                                <input type="number" id="rsiOversold" value="30" min="10" max="50" step="1"
+                                       class="parameter-input compact-input w-full px-2 py-1.5 border border-green-300 dark:border-green-600 rounded-md focus:outline-none bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200">
                             </div>
                         </div>
                     </div>
@@ -346,7 +362,7 @@
                 </nav>
             </div>
 
-            <!-- Content Tabs (Results/Chart) -->
+            <!-- Content Tabs (Results/Table/Chart) -->
             <div class="border-b border-gray-200 dark:border-gray-600 mb-4">
                 <nav class="flex space-x-4">
                     <button id="resultsTab" onclick="switchContentTab('results')" class="content-tab-button active py-2 px-1 border-b-2 border-blue-500 text-blue-600 dark:text-blue-400 font-medium text-sm">
@@ -356,6 +372,10 @@
                     <button id="chartTab" onclick="switchContentTab('chart')" class="content-tab-button py-2 px-1 border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 font-medium text-sm">
                         <i class="fas fa-chart-line mr-1"></i>
                         Price Chart
+                    </button>
+                    <button id="tableTab" onclick="switchContentTab('table')" class="content-tab-button py-2 px-1 border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 font-medium text-sm">
+                        <i class="fas fa-list mr-1"></i>
+                        Table
                     </button>
                 </nav>
             </div>
@@ -370,6 +390,46 @@
             <div id="resultsTabContent" class="tab-content">
                 <div id="resultsDisplay" class="compact-results">
                     <pre id="resultsOutput" class="text-xs font-mono bg-gray-50 dark:bg-gray-700 dark:text-gray-200 p-4 rounded-md border dark:border-gray-600 overflow-x-auto whitespace-pre-wrap leading-tight min-h-[200px]"></pre>
+                </div>
+            </div>
+
+            <!-- Table Tab Content -->
+            <div id="tableTabContent" class="tab-content hidden">
+                <div class="mb-4 flex justify-between items-center">
+                    <h3 class="text-md font-medium text-gray-900 dark:text-white">Formatted Results Table</h3>
+                    <div class="flex items-center space-x-2">
+                        <label class="text-sm text-gray-700 dark:text-gray-300">Rows to show:</label>
+                        <select id="tableRowsSelect" onchange="updateTableDisplay()" class="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                            <option value="10">10</option>
+                            <option value="25">25</option>
+                            <option value="50" selected>50</option>
+                            <option value="all">All</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="tableContainer" class="overflow-x-auto">
+                    <table id="resultsTable" class="min-w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600">
+                        <thead class="bg-gray-50 dark:bg-gray-600">
+                            <tr id="tableHeaderRow">
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-300 dark:border-gray-500 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 sortable-header" onclick="sortTable('Time')" id="timeHeader">
+                                    Time <i class="fas fa-sort-down ml-1" id="timeSortIcon"></i>
+                                </th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-300 dark:border-gray-500 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 sortable-header" onclick="sortTable('Symbol')">
+                                    Symbol <i class="fas fa-sort ml-1"></i>
+                                </th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-300 dark:border-gray-500 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 sortable-header" onclick="sortTable('CMP')">
+                                    CMP <i class="fas fa-sort ml-1"></i>
+                                </th>
+                                <!-- Dynamic indicator headers will be inserted here -->
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody" class="bg-white dark:bg-gray-700 divide-y divide-gray-200 dark:divide-gray-600">
+                            <!-- Table rows will be dynamically generated -->
+                        </tbody>
+                    </table>
+                    <div id="tableMessage" class="text-center py-8 text-gray-500 dark:text-gray-400">
+                        No data available. Please run a scanner first.
+                    </div>
                 </div>
             </div>
 
@@ -429,6 +489,8 @@
         let isDarkMode = false;
         let availableSymbols = [];
         let currentChartType = 'line'; // Default chart type
+        let currentSortColumn = 'Time';
+        let currentSortDirection = 'desc'; // Default to descending for time
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
@@ -653,19 +715,21 @@
                 case 'rsi':
                     return {
                         ...baseParams,
-                        rsi_periods: document.getElementById('rsiPeriods').value.split(',').map(p => parseInt(p.trim())),
+                        rsiPeriods: document.getElementById('rsiPeriods').value.split(',').map(p => parseInt(p.trim())),
+                        rsiOverbought: parseInt(document.getElementById('rsiOverbought').value),
+                        rsiOversold: parseInt(document.getElementById('rsiOversold').value),
                         daysFallbackThreshold: parseInt(document.getElementById('rsiDaysFallback').value)
                     };
                 case 'ema':
                     return {
                         ...baseParams,
-                        ema_periods: document.getElementById('emaPeriods').value.split(',').map(p => parseInt(p.trim())),
+                        emaPeriods: document.getElementById('emaPeriods').value.split(',').map(p => parseInt(p.trim())),
                         daysFallbackThreshold: parseInt(document.getElementById('emaDaysFallback').value)
                     };
                 case 'dma':
                     return {
                         ...baseParams,
-                        dma_periods: document.getElementById('dmaPeriods').value.split(',').map(p => parseInt(p.trim())),
+                        dmaPeriods: document.getElementById('dmaPeriods').value.split(',').map(p => parseInt(p.trim())),
                         daysFallbackThreshold: parseInt(document.getElementById('dmaDaysFallback').value)
                     };
                 default:
@@ -1095,33 +1159,267 @@
             }
         }
 
-        // Switch between content tabs (Results/Chart)
+        // Switch between content tabs (Results/Table/Chart)
         function switchContentTab(tab) {
             const resultsTabContent = document.getElementById('resultsTabContent');
+            const tableTabContent = document.getElementById('tableTabContent');
             const chartTabContent = document.getElementById('chartTabContent');
             const resultsTab = document.getElementById('resultsTab');
+            const tableTab = document.getElementById('tableTab');
             const chartTab = document.getElementById('chartTab');
 
             if (tab === 'results') {
                 resultsTab.classList.add('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
                 resultsTab.classList.remove('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+                tableTab.classList.remove('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
+                tableTab.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
                 chartTab.classList.remove('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
                 chartTab.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
                 resultsTabContent.classList.remove('hidden');
+                tableTabContent.classList.add('hidden');
                 chartTabContent.classList.add('hidden');
-            } else {
+            } else if (tab === 'table') {
+                tableTab.classList.add('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
+                tableTab.classList.remove('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+                resultsTab.classList.remove('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
+                resultsTab.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+                chartTab.classList.remove('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
+                chartTab.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+                resultsTabContent.classList.add('hidden');
+                tableTabContent.classList.remove('hidden');
+                chartTabContent.classList.add('hidden');
+
+                // Update table display when switching to table tab
+                updateTableDisplay();
+            } else if (tab === 'chart') {
                 chartTab.classList.add('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
                 chartTab.classList.remove('border-transparent', 'text-gray-500', 'dark:text-gray-400');
                 resultsTab.classList.remove('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
                 resultsTab.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
-                chartTabContent.classList.remove('hidden');
+                tableTab.classList.remove('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
+                tableTab.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
                 resultsTabContent.classList.add('hidden');
-                
+                tableTabContent.classList.add('hidden');
+                chartTabContent.classList.remove('hidden');
+
                 // Recreate chart with current type when switching to chart tab
                 if (scannerChartData[currentScanner]) {
                     const chartType = document.getElementById('chartTypeSelect').value;
                     createChart(scannerChartData[currentScanner], chartType);
                 }
+            }
+        }
+
+        // Update table display
+        function updateTableDisplay() {
+            const output = scannerOutputs[currentScanner];
+            if (!output || !output.trim()) {
+                document.getElementById('tableMessage').textContent = 'No data available. Please run a scanner first.';
+                document.getElementById('tableMessage').classList.remove('hidden');
+                document.getElementById('resultsTable').classList.add('hidden');
+                return;
+            }
+
+            const tableData = parseScannerOutput(output);
+            if (tableData && tableData.length > 0) {
+                renderTable(tableData);
+                document.getElementById('tableMessage').classList.add('hidden');
+                document.getElementById('resultsTable').classList.remove('hidden');
+            } else {
+                document.getElementById('tableMessage').textContent = 'Unable to parse scanner output. Please check the Results tab.';
+                document.getElementById('tableMessage').classList.remove('hidden');
+                document.getElementById('resultsTable').classList.add('hidden');
+            }
+        }
+
+        // Parse scanner output into table data
+        function parseScannerOutput(output) {
+            const lines = output.split('\n').filter(line => line.trim());
+            const tableData = [];
+
+            // Find the table section (look for lines with | separators)
+            let inTable = false;
+            let headers = [];
+
+            for (const line of lines) {
+                if (line.includes('|') && !line.includes('=')) {
+                    const cells = line.split('|').map(cell => cell.trim()).filter(cell => cell);
+
+                    if (!inTable) {
+                        // This might be headers
+                        if (cells.length >= 3 && cells.some(cell => cell.toUpperCase().includes('TIME') || cell.toUpperCase().includes('SYMBOL') || cell.toUpperCase().includes('CMP'))) {
+                            headers = cells;
+                            inTable = true;
+                        }
+                    } else {
+                        // This is data
+                        if (cells.length === headers.length) {
+                            const row = {};
+                            headers.forEach((header, index) => {
+                                row[header] = cells[index] || '';
+                            });
+                            tableData.push(row);
+                        }
+                    }
+                } else if (line.includes('=') && inTable) {
+                    // End of table
+                    break;
+                }
+            }
+
+            return tableData;
+        }
+
+        // Render table with data
+        function renderTable(data) {
+            const tableBody = document.getElementById('tableBody');
+            const tableHeaderRow = document.getElementById('tableHeaderRow');
+
+            if (data.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="4" class="px-4 py-2 text-center text-gray-500 dark:text-gray-400">No data to display</td></tr>';
+                return;
+            }
+
+            // Sort data based on current sort settings
+            const sortedData = [...data].sort((a, b) => {
+                const aVal = a[currentSortColumn] || '';
+                const bVal = b[currentSortColumn] || '';
+
+                // Handle numeric sorting for CMP and indicator values
+                if (currentSortColumn === 'CMP' || currentSortColumn.includes('RSI') || currentSortColumn.includes('EMA') || currentSortColumn.includes('DMA')) {
+                    const aNum = parseFloat(aVal.replace(/[^\d.-]/g, '')) || 0;
+                    const bNum = parseFloat(bVal.replace(/[^\d.-]/g, '')) || 0;
+                    return currentSortDirection === 'asc' ? aNum - bNum : bNum - aNum;
+                }
+
+                // Handle time sorting
+                if (currentSortColumn === 'Time') {
+                    const aTime = new Date(aVal);
+                    const bTime = new Date(bVal);
+                    return currentSortDirection === 'asc' ? aTime - bTime : bTime - aTime;
+                }
+
+                // String sorting for other columns
+                return currentSortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            });
+
+            // Get headers from first row
+            const headers = Object.keys(sortedData[0]);
+
+            // Create separate header cells for each indicator
+            const indicatorCols = headers.filter(h => !['Time', 'Symbol', 'CMP'].includes(h));
+
+            // Clear existing indicator headers
+            const existingHeaders = tableHeaderRow.querySelectorAll('.indicator-header');
+            existingHeaders.forEach(header => header.remove());
+
+            // Add indicator headers as separate th elements
+            indicatorCols.forEach(col => {
+                const th = document.createElement('th');
+                th.className = 'indicator-header px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-300 dark:border-gray-500 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 sortable-header';
+                th.onclick = () => sortTable(col);
+                th.innerHTML = `${col} <i class="fas fa-sort ml-1"></i>`;
+                tableHeaderRow.appendChild(th);
+            });
+
+            // Update sort icons
+            updateSortIcons();
+
+            // Update colspan for empty message
+            const totalCols = 3 + indicatorCols.length; // Time, Symbol, CMP + indicators
+
+            // Limit rows based on selection
+            const rowsSelect = document.getElementById('tableRowsSelect');
+            const maxRows = rowsSelect.value === 'all' ? sortedData.length : parseInt(rowsSelect.value);
+            const displayData = sortedData.slice(0, maxRows);
+
+            // Generate table rows
+            const rows = displayData.map(row => {
+                const time = row['Time'] || '';
+                const symbol = row['Symbol'] || '';
+                const cmp = row['CMP'] || '';
+
+                // Create indicator cells
+                const indicatorCells = indicatorCols.map(col => {
+                    const value = row[col] || '';
+                    let cellClass = 'px-4 py-2 text-sm text-gray-900 dark:text-white border-b border-gray-300 dark:border-gray-500';
+
+                    // Color coding for RSI values
+                    if (col.toUpperCase().includes('RSI')) {
+                        const numValue = parseFloat(value);
+                        if (!isNaN(numValue)) {
+                            const overboughtThreshold = parseInt(document.getElementById('rsiOverbought').value) || 70;
+                            const oversoldThreshold = parseInt(document.getElementById('rsiOversold').value) || 30;
+
+                            if (numValue >= overboughtThreshold) {
+                                cellClass += ' bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200';
+                            } else if (numValue <= oversoldThreshold) {
+                                cellClass += ' bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200';
+                            }
+                        }
+                    }
+
+                    // Color coding for EMA values with cross-period comparison
+                    if (col.toUpperCase().includes('EMA')) {
+                        const period = parseInt(col.replace('EMA', ''));
+                        const numValue = parseFloat(value);
+
+                        if (!isNaN(numValue)) {
+                            // Special logic for EMA 9 and 15 comparison
+                            if (period === 9 || period === 15) {
+                                // Get both EMA9 and EMA15 values for comparison
+                                const ema9Value = row['EMA9'] ? parseFloat(row['EMA9']) : null;
+                                const ema15Value = row['EMA15'] ? parseFloat(row['EMA15']) : null;
+
+                                if (ema9Value !== null && ema15Value !== null && !isNaN(ema9Value) && !isNaN(ema15Value)) {
+                                    // If EMA9 > EMA15, both should be green; otherwise both should be red
+                                    if (ema9Value > ema15Value) {
+                                        cellClass += ' bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200';
+                                    } else {
+                                        cellClass += ' bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200';
+                                    }
+                                }
+                            } else {
+                                // For other EMA periods, use standard coloring (could be customized later)
+                                // For now, no special coloring for other periods
+                            }
+                        }
+                    }
+
+                    // Color coding for DMA values (compare with CMP)
+                    if (col.toUpperCase().includes('DMA')) {
+                        const numValue = parseFloat(value);
+                        const cmpValue = row['CMP'] ? parseFloat(row['CMP']) : null;
+
+                        if (!isNaN(numValue) && cmpValue !== null && !isNaN(cmpValue)) {
+                            // If DMA < CMP, green (bullish); otherwise red (bearish)
+                            if (numValue < cmpValue) {
+                                cellClass += ' bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200';
+                            } else {
+                                cellClass += ' bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200';
+                            }
+                        }
+                    }
+
+                    return `<td class="${cellClass}">${value}</td>`;
+                }).join('');
+
+                return `
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-600">
+                        <td class="px-4 py-2 text-sm text-gray-900 dark:text-white border-b border-gray-300 dark:border-gray-500">${time}</td>
+                        <td class="px-4 py-2 text-sm font-medium text-gray-900 dark:text-white border-b border-gray-300 dark:border-gray-500">${symbol}</td>
+                        <td class="px-4 py-2 text-sm text-gray-900 dark:text-white border-b border-gray-300 dark:border-gray-500">${cmp}</td>
+                        ${indicatorCells}
+                    </tr>
+                `;
+            }).join('');
+
+            tableBody.innerHTML = rows;
+
+            // Update empty message colspan
+            const emptyRow = tableBody.querySelector('tr td[colspan]');
+            if (emptyRow) {
+                emptyRow.setAttribute('colspan', totalCols);
             }
         }
 
@@ -1152,6 +1450,9 @@
                     chart = null;
                 }
             }
+
+            // Update table display
+            updateTableDisplay();
         }
 
         // Toggle scanner parameters section
@@ -1171,15 +1472,45 @@
             }
         }
 
-        // Change chart type
-        function changeChartType() {
-            const chartType = document.getElementById('chartTypeSelect').value;
-            console.log('Changing chart type to:', chartType);
-            if (scannerChartData[currentScanner]) {
-                console.log('Recreating chart with data:', scannerChartData[currentScanner]);
-                createChart(scannerChartData[currentScanner], chartType);
+        // Sort table by column
+        function sortTable(column) {
+            if (currentSortColumn === column) {
+                // Toggle sort direction if same column
+                currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
             } else {
-                console.warn('No chart data available for current scanner');
+                // New column, default to ascending except for Time which defaults to descending
+                currentSortColumn = column;
+                currentSortDirection = column === 'Time' ? 'desc' : 'asc';
+            }
+
+            // Update sort icons
+            updateSortIcons();
+
+            // Re-render table with new sort
+            const output = scannerOutputs[currentScanner];
+            if (output && output.trim()) {
+                const tableData = parseScannerOutput(output);
+                if (tableData && tableData.length > 0) {
+                    renderTable(tableData);
+                }
+            }
+        }
+
+        // Update sort icons in headers
+        function updateSortIcons() {
+            // Reset all sort icons
+            document.querySelectorAll('.sortable-header i').forEach(icon => {
+                icon.className = 'fas fa-sort ml-1';
+            });
+
+            // Set active sort icon
+            const activeHeader = document.getElementById(currentSortColumn.toLowerCase() + 'Header') || 
+                               document.querySelector(`[onclick="sortTable('${currentSortColumn}')"]`);
+            if (activeHeader) {
+                const icon = activeHeader.querySelector('i');
+                if (icon) {
+                    icon.className = `fas fa-sort-${currentSortDirection === 'asc' ? 'up' : 'down'} ml-1`;
+                }
             }
         }
     </script>

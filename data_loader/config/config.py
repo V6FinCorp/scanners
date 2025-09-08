@@ -34,3 +34,12 @@ KEEP_CHUNK_FILES = False
 # attempting chunked downloads. Invalid symbols are skipped to avoid
 # repeated failing HTTP attempts.
 VALIDATE_SYMBOLS = True
+
+# Data fetching configuration
+UNIT = "minutes"  # Options: minutes, days, weeks, months
+INTERVAL = 5  # Candle interval in the specified unit
+INTERVALS = [5]  # List of intervals to fetch (for multiple intervals)
+
+# Authentication (optional)
+# Set UPSTOX_ACCESS_TOKEN environment variable for authenticated requests
+# If not set, requests will be made without authentication

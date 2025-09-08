@@ -7,10 +7,29 @@ import os
 import json
 import sys
 import shutil
+import numpy as np
+import pandas as pd
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 
+class CustomJSONEncoder(json.JSONEncoder):
+    """Custom JSON encoder to handle NaN values and numpy types"""
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj) if not np.isnan(obj) else None
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif pd.isna(obj):
+            return None
+        try:
+            return super().default(obj)
+        except TypeError:
+            return str(obj)
+
 app = Flask(__name__)
+app.json_encoder = CustomJSONEncoder
 CORS(app)
 
 # Import scanner manager from current directory (repository root)

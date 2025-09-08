@@ -50,8 +50,8 @@ def get_instrument_key(symbol, instrument_map):
             return symbol_data['instrument_key']
     return None
 
-def fetch_timeframe_data(symbol, timeframe, days_back=300):
-    """Fetch data for specific timeframe"""
+def fetch_timeframe_data_direct(symbol, timeframe, days_back=300):
+    """Fetch data for specific timeframe using direct API calls (fallback method)"""
     instrument_map = load_instrument_mapping()
     if not instrument_map:
         return None
@@ -102,7 +102,7 @@ def fetch_timeframe_data(symbol, timeframe, days_back=300):
     start_str = start_date.strftime("%Y-%m-%d")
     end_str = end_date.strftime("%Y-%m-%d")
 
-    print(f"Fetching {timeframe} data for {symbol}: {start_str} to {end_str}")
+    print(f"Fetching {timeframe} data for {symbol}: {start_str} to {end_str} (DIRECT API)")
 
     # Build API URL
     safe_key = instrument_key.replace('|', '%7C')
@@ -119,7 +119,7 @@ def fetch_timeframe_data(symbol, timeframe, days_back=300):
 
         if 'data' in data and 'candles' in data['data']:
             candles = data['data']['candles']
-            print(f"Received {len(candles)} {timeframe} data points for {symbol}")
+            print(f"Received {len(candles)} {timeframe} data points for {symbol} (DIRECT API)")
 
             # Convert to DataFrame
             rows = []
@@ -140,12 +140,143 @@ def fetch_timeframe_data(symbol, timeframe, days_back=300):
 
             return df
         else:
-            print(f"No candles in response for {symbol}: {data}")
+            print(f"No candles in response for {symbol}")
             return None
 
     except Exception as e:
         print(f"Error fetching {timeframe} data for {symbol}: {e}")
         return None
+
+def fetch_timeframe_data(symbol, timeframe, days_back=300):
+    """Fetch data for specific timeframe using data_loader.py"""
+    try:
+        # Import data_loader functionality
+        sys.path.append(os.path.join(os.path.dirname(__file__), 'data_loader'))
+        from data_loader import fetch_data_for_symbol
+
+        print(f"Using data_loader.py to fetch {days_back} days of data for {symbol}")
+
+        # Use data_loader to fetch data
+        combined_file = fetch_data_for_symbol(symbol, days_back)
+
+        if combined_file and os.path.exists(combined_file):
+            print(f"Loading data from: {combined_file}")
+
+            # Read the combined CSV file
+            df = pd.read_csv(combined_file)
+
+            # Convert timestamp to datetime
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+            df = df.sort_values('timestamp')
+
+            print(f"Loaded {len(df)} data points from data_loader.py")
+
+            # Resample data to requested timeframe if different from 5-minute data
+            if timeframe != '5mins':
+                print(f"Resampling 5-minute data to {timeframe} timeframe")
+
+                # Set timestamp as index for resampling
+                df = df.set_index('timestamp')
+
+                # Define resampling rules based on timeframe with market open offset
+                # Indian market opens at 9:15 AM, so we offset resampling to start from market open
+                market_open_offset = '9h15min'
+                
+                if timeframe == '15mins':
+                    resampled = df.resample('15min', offset=market_open_offset).agg({
+                        'open': 'first',
+                        'high': 'max',
+                        'low': 'min',
+                        'close': 'last',
+                        'volume': 'sum'
+                    })
+                elif timeframe == '30mins':
+                    resampled = df.resample('30min', offset=market_open_offset).agg({
+                        'open': 'first',
+                        'high': 'max',
+                        'low': 'min',
+                        'close': 'last',
+                        'volume': 'sum'
+                    })
+                elif timeframe == '1hour':
+                    resampled = df.resample('1H', offset=market_open_offset).agg({
+                        'open': 'first',
+                        'high': 'max',
+                        'low': 'min',
+                        'close': 'last',
+                        'volume': 'sum'
+                    })
+                elif timeframe == '2hours':
+                    resampled = df.resample('2H', offset=market_open_offset).agg({
+                        'open': 'first',
+                        'high': 'max',
+                        'low': 'min',
+                        'close': 'last',
+                        'volume': 'sum'
+                    })
+                elif timeframe == '4hours':
+                    resampled = df.resample('4H', offset=market_open_offset).agg({
+                        'open': 'first',
+                        'high': 'max',
+                        'low': 'min',
+                        'close': 'last',
+                        'volume': 'sum'
+                    })
+                elif timeframe == 'daily':
+                    resampled = df.resample('D').agg({
+                        'open': 'first',
+                        'high': 'max',
+                        'low': 'min',
+                        'close': 'last',
+                        'volume': 'sum'
+                    })
+                elif timeframe == 'weekly':
+                    resampled = df.resample('W').agg({
+                        'open': 'first',
+                        'high': 'max',
+                        'low': 'min',
+                        'close': 'last',
+                        'volume': 'sum'
+                    })
+                elif timeframe == 'monthly':
+                    resampled = df.resample('M').agg({
+                        'open': 'first',
+                        'high': 'max',
+                        'low': 'min',
+                        'close': 'last',
+                        'volume': 'sum'
+                    })
+                elif timeframe == 'yearly':
+                    resampled = df.resample('Y').agg({
+                        'open': 'first',
+                        'high': 'max',
+                        'low': 'min',
+                        'close': 'last',
+                        'volume': 'sum'
+                    })
+                else:
+                    print(f"Unsupported timeframe for resampling: {timeframe}")
+                    return None
+
+                # Remove NaN rows (incomplete candles)
+                resampled = resampled.dropna()
+
+                # Reset index to get timestamp back as column
+                df = resampled.reset_index()
+
+                print(f"Resampled to {len(df)} {timeframe} data points")
+
+            return df
+        else:
+            print(f"data_loader.py failed to fetch data for {symbol}")
+            return None
+
+    except Exception as e:
+        print(f"Error using data_loader.py: {e}")
+        print("Falling back to direct API fetch...")
+
+        # Fallback to original direct API method
+        return fetch_timeframe_data_direct(symbol, timeframe, days_back)
 
 def run_dma_scanner():
     """Main DMA scanner function"""
@@ -209,12 +340,34 @@ def run_dma_scanner():
             print(f"Failed to fetch data for {symbol}")
             continue
 
-        # Filter data to start from market open (9:15 AM)
-        df['hour'] = df['timestamp'].dt.hour
-        df['minute'] = df['timestamp'].dt.minute
-        market_open_mask = (df['hour'] > 9) | ((df['hour'] == 9) & (df['minute'] >= 15))
+        # Apply market open filter AFTER resampling (resampling is done in fetch_timeframe_data)
+        # For resampled data, we need to filter based on the timeframe
+        if base_timeframe in ['5mins', '15mins']:
+            # Intraday data: filter for 9:15 and later
+            df['hour'] = df['timestamp'].dt.hour
+            df['minute'] = df['timestamp'].dt.minute
+            market_open_mask = (df['hour'] > 9) | ((df['hour'] == 9) & (df['minute'] >= 15))
+        elif base_timeframe == '30mins':
+            # 30-minute data: filter for 9:15 and later (first 30-min candle starting at 9:15)
+            df['hour'] = df['timestamp'].dt.hour
+            df['minute'] = df['timestamp'].dt.minute
+            market_open_mask = (df['hour'] > 9) | ((df['hour'] == 9) & (df['minute'] >= 15))
+        elif base_timeframe == '1hour':
+            # 1-hour data: filter for 9:15 and later (first 1-hour candle starting at 9:15)
+            df['hour'] = df['timestamp'].dt.hour
+            df['minute'] = df['timestamp'].dt.minute
+            market_open_mask = (df['hour'] > 9) | ((df['hour'] == 9) & (df['minute'] >= 15))
+        elif base_timeframe in ['daily', 'weekly', 'monthly', 'yearly']:
+            # For daily and higher timeframes, no market open filtering needed
+            # These are already aggregated bars for the full trading day
+            market_open_mask = pd.Series([True] * len(df))
+        else:
+            # For other timeframes, use a more general approach
+            df['hour'] = df['timestamp'].dt.hour
+            market_open_mask = df['hour'] >= 9
+
         df = df[market_open_mask].copy()
-        df = df.drop(['hour', 'minute'], axis=1)
+        df = df.drop(['hour', 'minute'], axis=1, errors='ignore')
 
         print(f"Loaded {len(df)} {base_timeframe} data points for {symbol}")
 

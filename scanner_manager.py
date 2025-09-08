@@ -129,16 +129,25 @@ class ScannerManager:
                             df = pd.read_csv(csv_file)
                             print(f"CSV loaded successfully with {len(df)} rows")
 
-                            # Replace 'N/A' strings back to None for JSON compatibility
+                            # Replace 'N/A' strings and NaN values with None for JSON compatibility
                             df = df.replace('N/A', None)
+                            df = df.replace('NaN', None)
+                            df = df.replace('nan', None)
 
                             # Convert to list of dicts for JSON response, handling NaN values
                             results = df.to_dict('records')
-                            # Replace NaN values with None for JSON compatibility
+
+                            # Replace any remaining NaN values with None for JSON compatibility
                             for row in results:
                                 for key, value in row.items():
-                                    if pd.isna(value):
+                                    if pd.isna(value) or value is None or str(value).lower() in ['nan', 'nat']:
                                         row[key] = None
+                                    # Also handle numpy types that might cause JSON issues
+                                    elif hasattr(value, 'item'):  # numpy types
+                                        row[key] = value.item()
+                                    elif isinstance(value, (np.int64, np.float64)):
+                                        row[key] = value.item()
+
                             response_data['results'] = results
 
                             # Prepare chart data
@@ -183,8 +192,15 @@ class ScannerManager:
             if df.empty:
                 return None
 
-            # Replace 'N/A' strings with NaN for proper handling
-            df = df.replace('N/A', np.nan)
+            # Replace 'N/A' strings and NaN values with None for JSON compatibility
+            df = df.replace('N/A', None)
+            df = df.replace('NaN', None)
+            df = df.replace('nan', None)
+
+            # Replace NaN values in the dataframe
+            for col in df.columns:
+                if df[col].dtype in ['float64', 'int64']:
+                    df[col] = df[col].fillna(method='ffill').fillna(method='bfill').fillna(0)
 
             # Get the last 50 data points for chart
             chart_df = df.tail(50).copy()
@@ -194,8 +210,14 @@ class ScannerManager:
 
             # Price data - include OHLC for candlestick charts
             if 'open' in chart_df.columns and 'high' in chart_df.columns and 'low' in chart_df.columns:
-                ohlc_data = chart_df[['open', 'high', 'low', 'close']].ffill().values.tolist()
-                print(f"OHLC data sample: {ohlc_data[:3]}")  # Debug: print first 3 OHLC entries
+                ohlc_data = []
+                for _, row in chart_df.iterrows():
+                    ohlc_data.append([
+                        row['open'] if not pd.isna(row['open']) else 0,
+                        row['high'] if not pd.isna(row['high']) else 0,
+                        row['low'] if not pd.isna(row['low']) else 0,
+                        row['close'] if not pd.isna(row['close']) else 0
+                    ])
                 datasets.append({
                     'label': 'OHLC',
                     'data': ohlc_data,
@@ -206,7 +228,9 @@ class ScannerManager:
                 })
 
             # Also keep the close price line for line charts
-            close_data = chart_df['close'].ffill().tolist()
+            close_data = []
+            for _, row in chart_df.iterrows():
+                close_data.append(row['close'] if not pd.isna(row['close']) else 0)
             datasets.append({
                 'label': 'Close Price',
                 'data': close_data,
@@ -224,7 +248,10 @@ class ScannerManager:
 
                 for i, period in enumerate(rsi_periods):
                     if f'rsi_{period}' in chart_df.columns:
-                        rsi_data = chart_df[f'rsi_{period}'].ffill().tolist()
+                        rsi_data = []
+                        for _, row in chart_df.iterrows():
+                            rsi_val = row[f'rsi_{period}']
+                            rsi_data.append(rsi_val if not pd.isna(rsi_val) else None)
                         datasets.append({
                             'label': f'RSI({period})',
                             'data': rsi_data,
@@ -241,7 +268,10 @@ class ScannerManager:
 
                 for i, period in enumerate(ema_periods):
                     if f'ema_{period}' in chart_df.columns:
-                        ema_data = chart_df[f'ema_{period}'].fillna(method='ffill').tolist()
+                        ema_data = []
+                        for _, row in chart_df.iterrows():
+                            ema_val = row[f'ema_{period}']
+                            ema_data.append(ema_val if not pd.isna(ema_val) else None)
                         datasets.append({
                             'label': f'EMA({period})',
                             'data': ema_data,
@@ -257,7 +287,10 @@ class ScannerManager:
 
                 for i, period in enumerate(dma_periods):
                     if f'dma_{period}' in chart_df.columns:
-                        dma_data = chart_df[f'dma_{period}'].fillna(method='ffill').tolist()
+                        dma_data = []
+                        for _, row in chart_df.iterrows():
+                            dma_val = row[f'dma_{period}']
+                            dma_data.append(dma_val if not pd.isna(dma_val) else None)
                         datasets.append({
                             'label': f'DMA({period})',
                             'data': dma_data,

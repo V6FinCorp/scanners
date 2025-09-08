@@ -12,6 +12,13 @@ from typing import List, Dict, Tuple
 from datetime import datetime, timedelta, timezone
 import calendar
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 try:
     from symbol_mapper import SymbolMapper
 except Exception:
@@ -27,14 +34,21 @@ try:
 except Exception:
     HistoricalDataDownloader = None
     # We'll provide a simple inline downloader below if needed
-from . import config as base_cfg
+try:
+    import requests
+except ImportError:
+    requests = None
+    logger.warning("requests library not available - some features will be limited")
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# Import config - handle both relative and absolute imports
+try:
+    from .config import config as base_cfg
+except ImportError:
+    # Fallback for direct execution
+    import sys
+    import os
+    sys.path.append(os.path.join(os.path.dirname(__file__), 'config'))
+    from config import config as base_cfg
 
 def fetch_data_for_symbol(symbol: str, days_back: int) -> str:
     """
@@ -185,13 +199,16 @@ def fetch_data_for_symbol(symbol: str, days_back: int) -> str:
                 for interval_val in intervals:
                     url = self._build_url(start_date, end_date, interval=str(interval_val))
 
+                    # auth token: prefer env var UPSTOX_ACCESS_TOKEN
+                    token = os.environ.get('UPSTOX_ACCESS_TOKEN', '')
                     headers = {'Accept': 'application/json'}
+                    if token:
+                        headers['Authorization'] = f'Bearer {token}'
 
                     resp = requests.get(url, headers=headers, timeout=20)
 
                     try:
                         data = resp.json()
-                        print(f"API Response for {self.symbol}: {data}")  # Debug print
                     except Exception:
                         logger.exception("Failed to parse JSON response")
                         return None
@@ -299,6 +316,107 @@ def fetch_data_for_symbol(symbol: str, days_back: int) -> str:
         else:
             logger.error(f"Failed to download chunk {chunk_start} -> {chunk_end}")
     
+    # FETCH CURRENT DAY'S DATA IF TODAY IS A TRADING DAY
+    today = datetime.now(timezone.utc).date()
+    if is_trading_day(today) and requests is not None:
+        logger.info(f"Today ({today}) is a trading day - fetching current day data")
+        try:
+            # Get instrument key for the symbol
+            instrument_key = getattr(custom_config, 'INSTRUMENT_KEY', None)
+            if not instrument_key:
+                # Try to resolve from mapping
+                if instrument_map:
+                    im = instrument_map.get(symbol.upper())
+                    if not im:
+                        for k, v in instrument_map.items():
+                            if isinstance(v, dict) and v.get('trading_symbol', '').upper() == symbol.upper():
+                                im = v
+                                break
+                    if im and 'instrument_key' in im:
+                        instrument_key = im['instrument_key']
+
+            if not instrument_key:
+                instrument_key = f"NSE_EQ|{symbol}"
+
+            # Build intraday API URL
+            intraday_url = getattr(custom_config, 'INTRADAY_API_URL', 'https://api.upstox.com/v3/historical-candle/intraday')
+            unit = getattr(custom_config, 'UNIT', 'minutes')
+            interval = str(getattr(custom_config, 'INTERVAL', '5'))
+            safe_key = instrument_key.replace('|', '%7C')
+
+            if unit == 'minutes':
+                url = f"{intraday_url}/{safe_key}/minutes/{interval}"
+            else:
+                # Fallback to minutes if unit is not supported for intraday
+                url = f"{intraday_url}/{safe_key}/minutes/{interval}"
+
+            # Make API request
+            token = os.environ.get('UPSTOX_ACCESS_TOKEN', '')
+            headers = {'Accept': 'application/json'}
+            if token:
+                headers['Authorization'] = f'Bearer {token}'
+
+            response = requests.get(url, headers=headers, timeout=20)
+
+            if response.status_code == 200:
+                data = response.json()
+                candles = []
+
+                if isinstance(data, dict) and 'data' in data:
+                    d = data['data']
+                    if isinstance(d, dict) and 'candles' in d:
+                        candles = d['candles']
+                    elif isinstance(d, list):
+                        candles = d
+                elif isinstance(data, list):
+                    candles = data
+
+                if candles:
+                    # Create today's data file
+                    interval = str(getattr(custom_config, 'INTERVAL', '5'))
+                    today_str = today.strftime("%Y-%m-%d")
+                    symbol_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', symbol.upper())
+                    os.makedirs(symbol_dir, exist_ok=True)
+                    fname = f"{symbol}_{interval}_{today_str}_{today_str}.{getattr(custom_config, 'OUTPUT_FORMAT', 'csv')}"
+                    fpath = os.path.join(symbol_dir, fname)
+
+                    try:
+                        with open(fpath, 'w', encoding='utf-8') as f:
+                            f.write('timestamp,open,high,low,close,volume\n')
+                            for c in candles:
+                                if isinstance(c, (list, tuple)):
+                                    line = ','.join([str(x) for x in c[:6]])
+                                    f.write(line + '\n')
+                                elif isinstance(c, dict):
+                                    ts = c.get('timestamp') or c.get('time') or c.get('date')
+                                    line = ','.join([
+                                        str(ts),
+                                        str(c.get('open', 0)),
+                                        str(c.get('high', 0)),
+                                        str(c.get('low', 0)),
+                                        str(c.get('close', 0)),
+                                        str(c.get('volume', 0))
+                                    ])
+                                    f.write(line + '\n')
+
+                        logger.info(f"Current day data saved: {fpath}")
+                        chunk_files.append(fpath)  # Add to chunk_files list
+
+                    except Exception as e:
+                        logger.warning(f"Failed to save current day data: {e}")
+                else:
+                    logger.info("No current day data available")
+            else:
+                logger.warning(f"Failed to fetch current day data: HTTP {response.status_code}")
+
+        except Exception as e:
+            logger.warning(f"Error fetching current day data: {e}")
+    else:
+        if not is_trading_day(today):
+            logger.info(f"Today ({today}) is not a trading day - skipping current day data fetch")
+        if requests is None:
+            logger.info("requests library not available - skipping current day data fetch")
+    
     # Create combined file
     if chunk_files:
         combined_data = []
@@ -346,5 +464,55 @@ def fetch_data_for_symbol(symbol: str, days_back: int) -> str:
     return None
 
 def is_trading_day(date):
-    """Check if a date is a trading day (simplified)"""
-    return date.weekday() < 5  # Monday=0, Sunday=6
+    """Check if a date is a trading day using Upstox API or fallback to weekend check"""
+    # Check if holiday checking is enabled
+    enable_holiday_check = getattr(base_cfg, 'ENABLE_HOLIDAY_CHECK', True)
+
+    if not enable_holiday_check or requests is None:
+        # Fallback to weekend-only checking (original logic)
+        return date.weekday() < 5  # Monday=0, Sunday=6
+
+    try:
+        date_str = date.strftime("%Y-%m-%d")
+        url = f"{getattr(base_cfg, 'HOLIDAY_API_URL', 'https://api.upstox.com/v2/market/holidays')}/{date_str}"
+
+        # Make request without authentication (holiday API works without auth)
+        headers = {'Accept': 'application/json'}
+        response = requests.get(url, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            holiday_data = data.get('data', [])
+
+            if holiday_data:
+                logger.info(f"Date {date_str} is a holiday: {holiday_data[0].get('description', 'Holiday')}")
+
+            # If no holiday data returned, it's a trading day
+            return not holiday_data
+        else:
+            # If API fails, assume it's a trading day (fallback)
+            logger.warning(f"Failed to check holiday for {date_str}, assuming trading day")
+            return True
+    except Exception as e:
+        logger.warning(f"Error checking holiday for {date_str}: {e}, assuming trading day")
+        return True
+
+if __name__ == "__main__":
+    # Test the data loader with a sample symbol
+    import sys
+    
+    if len(sys.argv) > 1:
+        symbol = sys.argv[1]
+        days_back = int(sys.argv[2]) if len(sys.argv) > 2 else 30
+    else:
+        symbol = "ITC"  # Default test symbol
+        days_back = 30
+    
+    print(f"Testing data loader with symbol: {symbol}, days_back: {days_back}")
+    
+    result = fetch_data_for_symbol(symbol, days_back)
+    
+    if result:
+        print(f"Success! Data saved to: {result}")
+    else:
+        print("Failed to fetch data")

@@ -7,7 +7,7 @@
         20,
         50
     ],
-    "base_timeframe": "15mins",
-    "days_to_list": 2,
+    "base_timeframe": "1hour",
+    "days_to_list": 5,
     "days_fallback_threshold": 200
 }
