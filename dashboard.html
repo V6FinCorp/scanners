@@ -114,26 +114,19 @@
             background-color: #374151;
         }
 
-        /* Compact layout */
-        .compact-grid {
-            gap: 0.5rem;
+        /* Accordion styles */
+        .scanner-content {
+            max-height: 1000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease-in-out;
         }
-        .compact-input {
-            padding: 0.25rem 0.5rem;
-            font-size: 0.875rem;
+        .scanner-content.expanded {
+            max-height: 1000px;
         }
-        .compact-label {
-            font-size: 0.75rem;
-            margin-bottom: 0.25rem;
-        }
-        .compact-section {
-            padding: 0.75rem;
-        }
-        .compact-results {
-            font-size: 0.75rem;
-        }
-        .compact-table {
-            font-size: 0.75rem;
+        .scanner-content.collapsed {
+            max-height: 0;
+            padding-top: 0;
+            padding-bottom: 0;
         }
 
         /* Tab styles */
@@ -150,6 +143,12 @@
         /* Scanner tab styles */
         .scanner-tab-button {
             transition: all 0.3s ease;
+            flex: 1 !important;
+            text-align: center;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .scanner-tab-button:hover {
             cursor: pointer;
@@ -158,17 +157,40 @@
             transition: opacity 0.3s ease;
         }
 
-        .scanner-content {
-            transition: all 0.3s ease-in-out;
+        /* Content tab styles */
+        .content-tab-button {
+            transition: all 0.3s ease;
+            flex: none !important;
+            text-align: center;
+            min-width: 120px;
+            max-width: 150px;
+            width: auto;
         }
-        .scanner-content.collapsed {
-            max-height: 0;
-            overflow: hidden;
-            opacity: 0;
+        .content-tab-button:hover {
+            cursor: pointer;
         }
-        .scanner-content.expanded {
-            max-height: 1000px;
-            opacity: 1;
+        .content-tab-content {
+            transition: opacity 0.3s ease;
+        }
+
+        /* Compact section styles */
+        .compact-section {
+            padding: 0.75rem;
+        }
+        .compact-label {
+            font-size: 0.875rem;
+            line-height: 1.25rem;
+        }
+        .compact-input {
+            font-size: 0.875rem;
+            line-height: 1.25rem;
+        }
+        .compact-grid {
+            gap: 0.75rem;
+        }
+        .compact-results {
+            font-size: 0.75rem;
+            line-height: 1.5;
         }
     </style>
 </head>
@@ -326,8 +348,8 @@
         </div>
 
         <!-- Results Section with Tabs -->
-        <div id="resultsSection" class="bg-white dark:bg-gray-800 rounded-lg shadow-sm compact-section hidden transition-colors duration-300">
-            <div class="flex justify-between items-center mb-3">
+        <div id="resultsSection" class="bg-white dark:bg-gray-800 rounded-lg shadow-sm compact-section hidden transition-colors duration-300 p-6">
+            <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
                     <i class="fas fa-chart-bar mr-2 text-blue-600"></i>
                     Scanner Results
@@ -346,36 +368,36 @@
 
             <!-- Scanner Tabs -->
             <div class="border-b border-gray-200 dark:border-gray-600 mb-4">
-                <nav class="flex space-x-4">
-                    <button id="rsiScannerTab" onclick="switchScannerTab('rsi')" class="scanner-tab-button active py-2 px-1 border-b-2 border-blue-500 text-blue-600 dark:text-blue-400 font-medium text-sm">
+                <nav class="flex w-full" style="width: 100%; display: flex;">
+                    <button id="rsiScannerTab" onclick="switchScannerTab('rsi')" class="scanner-tab-button active flex-1 py-2 px-1 border-b-2 border-blue-500 text-blue-600 dark:text-blue-400 font-medium text-sm text-center">
                         <i class="fas fa-wave-square mr-1"></i>
                         RSI
                     </button>
-                    <button id="emaScannerTab" onclick="switchScannerTab('ema')" class="scanner-tab-button py-2 px-1 border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 font-medium text-sm">
+                    <button id="emaScannerTab" onclick="switchScannerTab('ema')" class="scanner-tab-button flex-1 py-2 px-1 border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 font-medium text-sm text-center">
                         <i class="fas fa-chart-line mr-1"></i>
                         EMA
                     </button>
-                    <button id="dmaScannerTab" onclick="switchScannerTab('dma')" class="scanner-tab-button py-2 px-1 border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 font-medium text-sm">
+                    <button id="dmaScannerTab" onclick="switchScannerTab('dma')" class="scanner-tab-button flex-1 py-2 px-1 border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 font-medium text-sm text-center">
                         <i class="fas fa-chart-area mr-1"></i>
                         DMA
                     </button>
                 </nav>
             </div>
 
-            <!-- Content Tabs (Results/Table/Chart) -->
+            <!-- Content Tabs (Table/Chart/Results) -->
             <div class="border-b border-gray-200 dark:border-gray-600 mb-4">
-                <nav class="flex space-x-4">
-                    <button id="resultsTab" onclick="switchContentTab('results')" class="content-tab-button active py-2 px-1 border-b-2 border-blue-500 text-blue-600 dark:text-blue-400 font-medium text-sm">
-                        <i class="fas fa-table mr-1"></i>
-                        Results
+                <nav class="flex w-full justify-start px-4" style="padding-left: 1rem;">
+                    <button id="tableTab" onclick="switchContentTab('table')" class="content-tab-button active flex-1 py-2 px-1 border-b-2 border-blue-500 text-blue-600 dark:text-blue-400 font-medium text-sm text-center" style="flex: 1; margin-right: 0.5rem;">
+                        <i class="fas fa-list mr-1"></i>
+                        Table
                     </button>
-                    <button id="chartTab" onclick="switchContentTab('chart')" class="content-tab-button py-2 px-1 border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 font-medium text-sm">
+                    <button id="chartTab" onclick="switchContentTab('chart')" class="content-tab-button flex-1 py-2 px-1 border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 font-medium text-sm text-center" style="flex: 1; margin-right: 0.5rem;">
                         <i class="fas fa-chart-line mr-1"></i>
                         Price Chart
                     </button>
-                    <button id="tableTab" onclick="switchContentTab('table')" class="content-tab-button py-2 px-1 border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 font-medium text-sm">
-                        <i class="fas fa-list mr-1"></i>
-                        Table
+                    <button id="resultsTab" onclick="switchContentTab('results')" class="content-tab-button flex-1 py-2 px-1 border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 font-medium text-sm text-center" style="flex: 1;">
+                        <i class="fas fa-table mr-1"></i>
+                        Results
                     </button>
                 </nav>
             </div>
@@ -686,6 +708,12 @@
                 if (data.chartData) {
                     const chartType = document.getElementById('chartTypeSelect').value;
                     createChart(data.chartData, chartType);
+                }
+
+                // Auto-refresh table if user is currently on table tab
+                const tableTab = document.getElementById('tableTab');
+                if (tableTab && tableTab.classList.contains('active')) {
+                    updateTableDisplay();
                 }
 
             } catch (error) {
@@ -1069,16 +1097,19 @@
                 tab.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
             });
 
-            // Reset content tabs
+            // Reset content tabs to Table as default
             document.querySelectorAll('.content-tab-button').forEach(tab => {
                 tab.classList.remove('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
                 tab.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
             });
+            document.getElementById('tableTab').classList.add('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
+            document.getElementById('tableTab').classList.remove('border-transparent', 'text-gray-500', 'dark:text-gray-400');
 
-            // Hide all results and chart content
+            // Hide all results and chart content, show table
             document.querySelectorAll('.tab-content').forEach(content => {
                 content.classList.add('hidden');
             });
+            document.getElementById('tableTabContent').classList.remove('hidden');
         }
 
         // Switch between tabs
@@ -1159,7 +1190,7 @@
             }
         }
 
-        // Switch between content tabs (Results/Table/Chart)
+        // Switch between content tabs (Table/Chart/Results)
         function switchContentTab(tab) {
             const resultsTabContent = document.getElementById('resultsTabContent');
             const tableTabContent = document.getElementById('tableTabContent');
@@ -1168,45 +1199,45 @@
             const tableTab = document.getElementById('tableTab');
             const chartTab = document.getElementById('chartTab');
 
-            if (tab === 'results') {
-                resultsTab.classList.add('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
-                resultsTab.classList.remove('border-transparent', 'text-gray-500', 'dark:text-gray-400');
-                tableTab.classList.remove('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
-                tableTab.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
-                chartTab.classList.remove('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
-                chartTab.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
-                resultsTabContent.classList.remove('hidden');
-                tableTabContent.classList.add('hidden');
-                chartTabContent.classList.add('hidden');
-            } else if (tab === 'table') {
+            if (tab === 'table') {
                 tableTab.classList.add('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
                 tableTab.classList.remove('border-transparent', 'text-gray-500', 'dark:text-gray-400');
-                resultsTab.classList.remove('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
-                resultsTab.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
                 chartTab.classList.remove('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
                 chartTab.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
-                resultsTabContent.classList.add('hidden');
+                resultsTab.classList.remove('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
+                resultsTab.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
                 tableTabContent.classList.remove('hidden');
                 chartTabContent.classList.add('hidden');
+                resultsTabContent.classList.add('hidden');
 
                 // Update table display when switching to table tab
                 updateTableDisplay();
             } else if (tab === 'chart') {
                 chartTab.classList.add('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
                 chartTab.classList.remove('border-transparent', 'text-gray-500', 'dark:text-gray-400');
-                resultsTab.classList.remove('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
-                resultsTab.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
                 tableTab.classList.remove('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
                 tableTab.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
-                resultsTabContent.classList.add('hidden');
+                resultsTab.classList.remove('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
+                resultsTab.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
                 tableTabContent.classList.add('hidden');
                 chartTabContent.classList.remove('hidden');
+                resultsTabContent.classList.add('hidden');
 
                 // Recreate chart with current type when switching to chart tab
                 if (scannerChartData[currentScanner]) {
                     const chartType = document.getElementById('chartTypeSelect').value;
                     createChart(scannerChartData[currentScanner], chartType);
                 }
+            } else if (tab === 'results') {
+                resultsTab.classList.add('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
+                resultsTab.classList.remove('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+                tableTab.classList.remove('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
+                tableTab.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+                chartTab.classList.remove('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
+                chartTab.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+                tableTabContent.classList.add('hidden');
+                chartTabContent.classList.add('hidden');
+                resultsTabContent.classList.remove('hidden');
             }
         }
 

@@ -9,18 +9,19 @@ import numpy as np
 from datetime import datetime, timedelta
 import requests
 import sys
+import pytz  # Added for timezone handling
 
 def calculate_dma(data, period, displacement=1):
-    """Calculate DMA (Displaced Moving Average)"""
-    if len(data) < period:
+    """Calculate DMA (Displaced Moving Average) with backward displacement"""
+    if len(data) < period + displacement:
         # Not enough data for this DMA period
         return pd.Series([float('nan')] * len(data), index=data.index)
 
     # Calculate simple moving average
     sma = data['close'].rolling(window=period).mean()
 
-    # Apply displacement (shift forward by displacement periods)
-    dma = sma.shift(-displacement)
+    # Apply backward displacement (shift forward in time by displacement periods)
+    dma = sma.shift(displacement)
 
     return dma
 
@@ -148,7 +149,7 @@ def fetch_timeframe_data_direct(symbol, timeframe, days_back=300):
         return None
 
 def fetch_timeframe_data(symbol, timeframe, days_back=300):
-    """Fetch data for specific timeframe using data_loader.py"""
+    """Fetch data for specific timeframe with improved accuracy"""
     try:
         # Import data_loader functionality
         sys.path.append(os.path.join(os.path.dirname(__file__), 'data_loader'))
@@ -156,7 +157,7 @@ def fetch_timeframe_data(symbol, timeframe, days_back=300):
 
         print(f"Using data_loader.py to fetch {days_back} days of data for {symbol}")
 
-        # Use data_loader to fetch data
+        # Use data_loader to fetch 5-minute data
         combined_file = fetch_data_for_symbol(symbol, days_back)
 
         if combined_file and os.path.exists(combined_file):
@@ -165,118 +166,91 @@ def fetch_timeframe_data(symbol, timeframe, days_back=300):
             # Read the combined CSV file
             df = pd.read_csv(combined_file)
 
-            # Convert timestamp to datetime
-            df['timestamp'] = pd.to_datetime(df['timestamp'])
+            # Convert timestamp to datetime and localize to IST
+            df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True).dt.tz_convert('Asia/Kolkata')
             df = df.sort_values('timestamp')
 
             print(f"Loaded {len(df)} data points from data_loader.py")
 
-            # Resample data to requested timeframe if different from 5-minute data
+            # Apply market open filter BEFORE resampling for accuracy
+            if timeframe in ['5mins', '15mins', '30mins', '1hour', '4hours']:
+                # Filter for market hours: 9:15 to 15:30 IST
+                df['hour'] = df['timestamp'].dt.hour
+                df['minute'] = df['timestamp'].dt.minute
+                market_open_mask = (
+                    ((df['hour'] == 9) & (df['minute'] >= 15)) |
+                    ((df['hour'] > 9) & (df['hour'] < 15)) |
+                    ((df['hour'] == 15) & (df['minute'] <= 30))
+                )
+                df = df[market_open_mask].copy()
+                df = df.drop(['hour', 'minute'], axis=1, errors='ignore')
+                print(f"Filtered to {len(df)} market hours data points")
+            elif timeframe in ['daily', 'weekly', 'monthly']:
+                # For daily and higher, filter to trading days (exclude weekends and holidays if possible)
+                df['date'] = df['timestamp'].dt.date
+                # Basic weekend filter (could be enhanced with holiday API)
+                df['weekday'] = df['timestamp'].dt.weekday  # 0=Monday, 6=Sunday
+                trading_day_mask = df['weekday'] < 5  # Monday to Friday
+                df = df[trading_day_mask].copy()
+                df = df.drop(['date', 'weekday'], axis=1, errors='ignore')
+                print(f"Filtered to {len(df)} trading day data points")
+
+            # Resample to requested timeframe
             if timeframe != '5mins':
-                print(f"Resampling 5-minute data to {timeframe} timeframe")
-
-                # Set timestamp as index for resampling
-                df = df.set_index('timestamp')
-
-                # Define resampling rules based on timeframe with market open offset
-                # Indian market opens at 9:15 AM, so we offset resampling to start from market open
-                market_open_offset = '9h15min'
-                
+                print(f"Resampling to {timeframe} timeframe")
                 if timeframe == '15mins':
-                    resampled = df.resample('15min', offset=market_open_offset).agg({
-                        'open': 'first',
-                        'high': 'max',
-                        'low': 'min',
-                        'close': 'last',
-                        'volume': 'sum'
-                    })
+                    rule = '15min'
                 elif timeframe == '30mins':
-                    resampled = df.resample('30min', offset=market_open_offset).agg({
-                        'open': 'first',
-                        'high': 'max',
-                        'low': 'min',
-                        'close': 'last',
-                        'volume': 'sum'
-                    })
+                    rule = '30min'
                 elif timeframe == '1hour':
-                    resampled = df.resample('1H', offset=market_open_offset).agg({
-                        'open': 'first',
-                        'high': 'max',
-                        'low': 'min',
-                        'close': 'last',
-                        'volume': 'sum'
-                    })
-                elif timeframe == '2hours':
-                    resampled = df.resample('2H', offset=market_open_offset).agg({
-                        'open': 'first',
-                        'high': 'max',
-                        'low': 'min',
-                        'close': 'last',
-                        'volume': 'sum'
-                    })
+                    rule = 'h'
                 elif timeframe == '4hours':
-                    resampled = df.resample('4H', offset=market_open_offset).agg({
-                        'open': 'first',
-                        'high': 'max',
-                        'low': 'min',
-                        'close': 'last',
-                        'volume': 'sum'
-                    })
+                    rule = '4h'
                 elif timeframe == 'daily':
-                    resampled = df.resample('D').agg({
-                        'open': 'first',
-                        'high': 'max',
-                        'low': 'min',
-                        'close': 'last',
-                        'volume': 'sum'
-                    })
+                    rule = 'D'
                 elif timeframe == 'weekly':
-                    resampled = df.resample('W').agg({
-                        'open': 'first',
-                        'high': 'max',
-                        'low': 'min',
-                        'close': 'last',
-                        'volume': 'sum'
-                    })
+                    rule = 'W'
                 elif timeframe == 'monthly':
-                    resampled = df.resample('M').agg({
-                        'open': 'first',
-                        'high': 'max',
-                        'low': 'min',
-                        'close': 'last',
-                        'volume': 'sum'
-                    })
-                elif timeframe == 'yearly':
-                    resampled = df.resample('Y').agg({
-                        'open': 'first',
-                        'high': 'max',
-                        'low': 'min',
-                        'close': 'last',
-                        'volume': 'sum'
-                    })
+                    rule = 'M'
                 else:
-                    print(f"Unsupported timeframe for resampling: {timeframe}")
+                    print(f"Unsupported timeframe: {timeframe}")
                     return None
 
-                # Remove NaN rows (incomplete candles)
-                resampled = resampled.dropna()
-
-                # Reset index to get timestamp back as column
-                df = resampled.reset_index()
+                # Resample with proper OHLC aggregation
+                df = df.set_index('timestamp').resample(rule).agg({
+                    'open': 'first',
+                    'high': 'max',
+                    'low': 'min',
+                    'close': 'last',
+                    'volume': 'sum'
+                }).dropna().reset_index()
 
                 print(f"Resampled to {len(df)} {timeframe} data points")
 
+            # Validate data integrity
+            if df.empty:
+                print("No data after filtering/resampling")
+                return None
+
+            # Check for basic data quality
+            invalid_mask = (df['high'] < df['low']) | (df['open'] <= 0) | (df['close'] <= 0)
+            if invalid_mask.any():
+                print(f"Warning: {invalid_mask.sum()} invalid OHLC records found, removing")
+                df = df[~invalid_mask]
+
+            # Remove duplicates
+            df = df.drop_duplicates(subset='timestamp')
+
+            print(f"Final data: {len(df)} records")
             return df
+
         else:
-            print(f"data_loader.py failed to fetch data for {symbol}")
+            print("Failed to fetch data from data_loader.py")
             return None
 
     except Exception as e:
-        print(f"Error using data_loader.py: {e}")
-        print("Falling back to direct API fetch...")
-
-        # Fallback to original direct API method
-        return fetch_timeframe_data_direct(symbol, timeframe, days_back)
+        print(f"Error in fetch_timeframe_data: {e}")
+        return None
 
 def run_dma_scanner():
     """Main DMA scanner function"""
@@ -298,9 +272,9 @@ def run_dma_scanner():
         config = {
             "symbols": ["RELIANCE"],
             "dma_periods": [10, 20, 50],
-            "base_timeframe": "15mins",
+            "base_timeframe": "1hour",
             "days_to_list": 2,
-            "days_fallback_threshold": 200,
+            "days_fallback_threshold": 1600,
             "displacement": 1
         }
         os.makedirs(os.path.dirname(config_path), exist_ok=True)
@@ -328,48 +302,51 @@ def run_dma_scanner():
         # Calculate required days based on DMA periods
         # DMA needs more data for longer periods to stabilize
         max_dma_period = max(dma_periods)
-        ideal_days = max(max_dma_period * 2, 100)  # At least 2x the longest period or 100 days
+        ideal_days = max(max_dma_period * 3, 200)  # At least 3x the longest period or 200 days for better accuracy
         actual_days = min(days_fallback_threshold, ideal_days)
 
         print(f"DMA needs {ideal_days} days for accuracy, but limited to max {days_fallback_threshold} days")
+        print(f"NOTE: This assumes proper historical data fetching. If data spans < {ideal_days} days,")
+        print(f"      the data_loader may not be configured correctly for historical data retrieval.")
         print(f"Fetching {actual_days} days of data")
 
         # Fetch data
         df = fetch_timeframe_data(symbol, base_timeframe, days_back=actual_days)
         if df is None or df.empty:
-            print(f"Failed to fetch data for {symbol}")
+            print(f"CRITICAL: Failed to fetch ANY data for {symbol}")
+            print("SKIPPING {symbol} - No data available")
             continue
 
-        # Apply market open filter AFTER resampling (resampling is done in fetch_timeframe_data)
-        # For resampled data, we need to filter based on the timeframe
-        if base_timeframe in ['5mins', '15mins']:
-            # Intraday data: filter for 9:15 and later
-            df['hour'] = df['timestamp'].dt.hour
-            df['minute'] = df['timestamp'].dt.minute
-            market_open_mask = (df['hour'] > 9) | ((df['hour'] == 9) & (df['minute'] >= 15))
-        elif base_timeframe == '30mins':
-            # 30-minute data: filter for 9:15 and later (first 30-min candle starting at 9:15)
-            df['hour'] = df['timestamp'].dt.hour
-            df['minute'] = df['timestamp'].dt.minute
-            market_open_mask = (df['hour'] > 9) | ((df['hour'] == 9) & (df['minute'] >= 15))
-        elif base_timeframe == '1hour':
-            # 1-hour data: filter for 9:15 and later (first 1-hour candle starting at 9:15)
-            df['hour'] = df['timestamp'].dt.hour
-            df['minute'] = df['timestamp'].dt.minute
-            market_open_mask = (df['hour'] > 9) | ((df['hour'] == 9) & (df['minute'] >= 15))
-        elif base_timeframe in ['daily', 'weekly', 'monthly', 'yearly']:
-            # For daily and higher timeframes, no market open filtering needed
-            # These are already aggregated bars for the full trading day
-            market_open_mask = pd.Series([True] * len(df))
-        else:
-            # For other timeframes, use a more general approach
-            df['hour'] = df['timestamp'].dt.hour
-            market_open_mask = df['hour'] >= 9
+        print(f"Fetched {len(df)} {base_timeframe} data points for {symbol}")
+        print(f"Date range: {df['timestamp'].min()} to {df['timestamp'].max()}")
 
-        df = df[market_open_mask].copy()
-        df = df.drop(['hour', 'minute'], axis=1, errors='ignore')
+        # STRICT DATA SUFFICIENCY CHECK
+        insufficient_periods = []
+        sufficient_periods = []
 
-        print(f"Loaded {len(df)} {base_timeframe} data points for {symbol}")
+        for period in dma_periods:
+            required_points = period + displacement + 20  # period + displacement + generous buffer
+            if len(df) < required_points:
+                insufficient_periods.append(f"DMA{period} (needs {required_points}, has {len(df)})")
+            else:
+                sufficient_periods.append(f"DMA{period}")
+
+        if insufficient_periods:
+            print("CRITICAL DATA INSUFFICIENCY DETECTED!")
+            print(f"Insufficient data for: {', '.join(insufficient_periods)}")
+            print(f"Sufficient data for: {', '.join(sufficient_periods)}" if sufficient_periods else "None sufficient")
+            print("SOLUTION: The data_loader is not fetching historical data properly.")
+            print(f"         Current data has only {len(df)} points, but DMA calculations need:")
+            for period in dma_periods:
+                required_points = period + displacement + 20
+                print(f"         - DMA{period}: {required_points} data points minimum")
+            print(f"         RECOMMENDATION: Check data_loader configuration and ensure it's fetching")
+            print(f"         historical data, not future data. Current data spans only {len(df)} points")
+            print(f"         from {df['timestamp'].min()} to {df['timestamp'].max()}")
+            print("SKIPPING CALCULATIONS FOR {symbol} - INACCURATE RESULTS WOULD BE GENERATED")
+            continue  # Skip to next symbol
+
+        print("DATA SUFFICIENCY CHECK PASSED - Proceeding with calculations...")
 
         # Calculate DMA for each period
         dma_results = {}
@@ -381,6 +358,23 @@ def run_dma_scanner():
         # Add DMA columns to dataframe
         for dma_col, dma_series in dma_results.items():
             df[dma_col] = dma_series
+
+        # FILTER TO VALID ROWS ONLY (NO N/A IN TABLE)
+        # Find the latest index where ANY DMA value is NaN
+        max_nan_index = -1
+        for dma_col in dma_results.keys():
+            nan_indices = df[df[dma_col].isna()].index
+            if not nan_indices.empty:
+                max_nan_index = max(max_nan_index, nan_indices.max())
+
+        # Keep only rows after the last NaN
+        if max_nan_index >= 0:
+            df = df.iloc[max_nan_index + 1:].copy()
+            print(f"Filtered to {len(df)} valid rows (removed {max_nan_index + 1} rows with NaN DMA values)")
+
+        if df.empty:
+            print("No valid DMA data after filtering - insufficient data even after fetch")
+            continue
 
         # Filter data for the specified number of days
         if not df.empty:
@@ -394,12 +388,8 @@ def run_dma_scanner():
         os.makedirs(f"data/{symbol}", exist_ok=True)
         csv_path = f"data/{symbol}/{symbol}_dma_data.csv"
 
-        # Replace NaN values with None for better CSV handling
+        # Keep NaN values as NaN for proper numerical analysis
         csv_df = df.copy()
-        for col in csv_df.columns:
-            if csv_df[col].dtype in ['float64', 'int64']:
-                csv_df[col] = csv_df[col].fillna('N/A')
-
         csv_df.to_csv(csv_path, index=False)
         print(f"Data with DMA calculations saved to: {csv_path}")
         print(f"Final dataframe shape: {df.shape}")
@@ -444,7 +434,7 @@ def run_dma_scanner():
                 else:
                     period = int(header.replace('DMA', ''))
                     dma_value = row[f'dma_{period}']
-                    if pd.isna(dma_value) or dma_value != dma_value:
+                    if pd.isna(dma_value):
                         value = 'N/A'
                     else:
                         value = f"{dma_value:.2f}"
@@ -472,7 +462,7 @@ def run_dma_scanner():
                     value = symbol
                 elif header == 'CMP':
                     close_val = row['close']
-                    if pd.isna(close_val) or str(close_val).lower() in ['nat', 'nan']:
+                    if pd.isna(close_val):
                         value = 'N/A'
                     else:
                         try:
@@ -482,7 +472,7 @@ def run_dma_scanner():
                 else:
                     period = int(header.replace('DMA', ''))
                     dma_value = row[f'dma_{period}']
-                    if pd.isna(dma_value) or dma_value != dma_value:
+                    if pd.isna(dma_value):
                         value = 'N/A'
                     else:
                         value = f"{dma_value:.2f}"

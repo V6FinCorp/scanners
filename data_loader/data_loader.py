@@ -50,7 +50,7 @@ except ImportError:
     sys.path.append(os.path.join(os.path.dirname(__file__), 'config'))
     from config import config as base_cfg
 
-def fetch_data_for_symbol(symbol: str, days_back: int) -> str:
+def fetch_data_for_symbol(symbol, days_back=30):
     """
     Fetch historical data for a single symbol for the specified number of days.
     
@@ -61,6 +61,57 @@ def fetch_data_for_symbol(symbol: str, days_back: int) -> str:
     Returns:
         Path to the combined CSV file
     """
+    # Check if data already exists and is sufficient before fetching
+    symbol_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', symbol.upper())
+    combined_filename = f"{symbol}_5_combined.csv"
+    combined_filepath = os.path.join(symbol_dir, combined_filename)
+    
+    if os.path.exists(combined_filepath):
+        try:
+            import pandas as pd
+            existing_df = pd.read_csv(combined_filepath)
+            if not existing_df.empty:
+                # Check if existing data covers the required date range
+                existing_start = pd.to_datetime(existing_df['timestamp'].min()).date()
+                existing_end = pd.to_datetime(existing_df['timestamp'].max()).date()
+                
+                # Calculate required date range
+                today = datetime.now(timezone.utc).date()
+                end_date = today
+                while not is_trading_day(end_date):
+                    end_date = end_date - timedelta(days=1)
+                
+                start_date = end_date - timedelta(days=days_back)
+                while not is_trading_day(start_date):
+                    start_date = start_date + timedelta(days=1)
+                
+                # If existing data covers the required range, return the existing file
+                if existing_start <= start_date and existing_end >= end_date:
+                    logger.info(f"Existing data for {symbol} already covers the required date range ({existing_start} to {existing_end})")
+                    logger.info(f"Using existing combined file: {combined_filepath} ({len(existing_df)} records)")
+                    
+                    # Clean up any leftover chunk files if KEEP_CHUNK_FILES is False
+                    keep_chunk_files = getattr(base_cfg, 'KEEP_CHUNK_FILES', True)
+                    if not keep_chunk_files:
+                        import glob
+                        chunk_pattern = os.path.join(symbol_dir, f"{symbol}_5_*.csv")
+                        chunk_files_to_clean = [f for f in glob.glob(chunk_pattern) if 'combined' not in f]
+                        if chunk_files_to_clean:
+                            logger.info(f"Cleaning up {len(chunk_files_to_clean)} leftover chunk files (KEEP_CHUNK_FILES=False)")
+                            for chunk_file in chunk_files_to_clean:
+                                try:
+                                    os.remove(chunk_file)
+                                    logger.debug(f"Removed leftover chunk file: {chunk_file}")
+                                except Exception as e:
+                                    logger.warning(f"Failed to remove chunk file {chunk_file}: {e}")
+                    
+                    return combined_filepath
+                else:
+                    logger.info(f"Existing data for {symbol} ({existing_start} to {existing_end}) doesn't cover required range ({start_date} to {end_date})")
+                    logger.info("Fetching additional data...")
+        except Exception as e:
+            logger.warning(f"Error checking existing data for {symbol}: {e}")
+    
     # Create a per-symbol copy of configuration
     import types
     custom_config = types.SimpleNamespace()
@@ -244,7 +295,10 @@ def fetch_data_for_symbol(symbol: str, days_back: int) -> str:
 
                     symbol_dir = os.path.join(out_dir, self.symbol.upper())
                     os.makedirs(symbol_dir, exist_ok=True)
-                    fname = f"{self.symbol}_{interval_val}_combined.csv"
+                    # Create unique filename for each chunk using date range
+                    start_date = getattr(self.cfg, 'START_DATE')
+                    end_date = getattr(self.cfg, 'END_DATE')
+                    fname = f"{self.symbol}_{interval_val}_{start_date}_{end_date}.csv"
                     fpath = os.path.join(symbol_dir, fname)
                     try:
                         with open(fpath, 'w', encoding='utf-8') as f:
@@ -260,25 +314,26 @@ def fetch_data_for_symbol(symbol: str, days_back: int) -> str:
 
         downloader = SimpleDownloader(custom_config, symbol)
 
-    # Calculate date range based on DAYS_BACK
-    days_back = getattr(custom_config, 'DAYS_BACK', 30)
-    
+    # Use the days_back parameter passed to the function
+    # This overrides any config defaults
+    # For DMA scanner, we want calendar days, not trading days
+    calendar_days_back = days_back
+
     today = datetime.now(timezone.utc).date()
     end_date = today
-    
-    # Find the most recent trading day
+
+    # Find the most recent trading day for end_date
     while not is_trading_day(end_date):
         end_date = end_date - timedelta(days=1)
-    
-    # Calculate start date
-    start_date = end_date
-    trading_days_count = 0
-    
-    while trading_days_count < days_back:
-        start_date = start_date - timedelta(days=1)
-        if is_trading_day(start_date):
-            trading_days_count += 1
-    
+
+    # Calculate start date using calendar days (not trading days)
+    # This ensures we get the full historical range requested
+    start_date = end_date - timedelta(days=calendar_days_back)
+
+    # Find the first trading day on or after the calculated start date
+    while not is_trading_day(start_date):
+        start_date = start_date + timedelta(days=1)
+
     start_date_str = start_date.strftime("%Y-%m-%d")
     end_date_str = end_date.strftime("%Y-%m-%d")
     
@@ -459,6 +514,20 @@ def fetch_data_for_symbol(symbol: str, days_back: int) -> str:
                     f.write(line + '\n')
             
             logger.info(f"Combined file created: {combined_filepath} ({len(unique_data)} records)")
+            
+            # Clean up chunk files if KEEP_CHUNK_FILES is False
+            keep_chunk_files = getattr(custom_config, 'KEEP_CHUNK_FILES', True)
+            if not keep_chunk_files:
+                logger.info("Cleaning up chunk files (KEEP_CHUNK_FILES=False)")
+                for chunk_file in chunk_files:
+                    try:
+                        if os.path.exists(chunk_file):
+                            os.remove(chunk_file)
+                            logger.debug(f"Removed chunk file: {chunk_file}")
+                    except Exception as e:
+                        logger.warning(f"Failed to remove chunk file {chunk_file}: {e}")
+                logger.info(f"Cleaned up {len(chunk_files)} chunk files")
+            
             return combined_filepath
     
     return None
