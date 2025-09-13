@@ -1,0 +1,14 @@
+{
+    "symbols": [
+        "RELIANCE"
+    ],
+    "ema_periods": [
+        9,
+        15,
+        65,
+        200
+    ],
+    "base_timeframe": "15mins",
+    "days_to_list": 2,
+    "days_fallback_threshold": 200
+}

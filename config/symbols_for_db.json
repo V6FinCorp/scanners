@@ -1,0 +1,4 @@
+{
+    "description": "Common NSE symbols for trading analysis",
+    "symbols": ["RELIANCE", "TCS", "HDFCBANK", "ICICIBANK", "INFY", "WIPRO", "LT", "BAJFINANCE", "KOTAKBANK", "ITC"]
+}
