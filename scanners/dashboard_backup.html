@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Scanners Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.2.1/dist/chartjs-chart-financial.min.js"></script>
+    <link rel="stylesheet" href="simple-theme.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div>
+                <h1 class="header-title">📈 Trading Scanners</h1>
+            </div>
+            <div class="header-actions">
+                <div class="text-muted">
+                    📅 Sep 7, 2025
+                </div>
+                <!-- Dark Mode Toggle -->
+                <button id="darkModeToggle" class="theme-toggle" title="Toggle Theme">
+                    🌙
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Scanner Selection -->
+    <div id="scannerSection" class="panel">
+            <div class="panel-header" onclick="toggleScannerSection()">
+                <h2 id="scannerTitle" class="panel-title">
+                    ⚙️ Scanner & Parameters
+                </h2>
+                <button id="scannerToggleBtn" class="btn btn-secondary btn-sm">
+                    ▼
+                </button>
+            </div>
+
+            <div id="scannerContent" class="panel-content">
+                <div class="form-grid">
+                    <!-- Scanner Type -->
+                    <div class="form-group">
+                        <label class="form-label">Scanner</label>
+                        <select id="scannerType" class="form-select">
+                            <option value="rsi">RSI</option>
+                            <option value="ema">EMA</option>
+                            <option value="dma">DMA</option>
+                        </select>
+                    </div>
+
+                    <!-- Symbols -->
+                    <div class="form-group">
+                        <label class="form-label">Symbols</label>
+               <input type="text" id="symbols" value="RELIANCE" placeholder="RELIANCE,TCS" class="form-input">
+                    </div>
+
+                    <!-- Base Timeframe -->
+                    <div class="form-group">
+                        <label class="form-label">Timeframe</label>
+                        <select id="baseTimeframe" class="form-select">
+                            <option value="5mins">5min</option>
+                            <option value="15mins" selected>15min</option>
+                            <option value="30mins">30min</option>
+                            <option value="1hour">1H</option>
+                            <option value="daily">Daily</option>
+                        </select>
+                    </div>
+
+                    <!-- Days to List -->
+                    <div class="form-group">
+                        <label class="form-label">Days</label>
+               <input type="number" id="daysToList" value="2" min="1" max="30" class="form-input">
+                    </div>
+
+                    <!-- Run Button -->
+                    <div class="form-group" style="justify-content: flex-end; display: flex; align-items: end;">
+            <button onclick="runScanner()" id="runButton" class="btn btn-primary">
+                            ▶️ Run
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Dynamic Parameters based on Scanner Type -->
+                <div id="dynamicParams">
+                    <!-- RSI Parameters -->
+                    <div id="rsiParams">
+                        <div class="form-grid mt-3">
+                            <div class="form-group">
+                        <label class="form-label">RSI Periods</label>
+                    <input type="text" id="rsiPeriods" value="15,30,60" placeholder="14,21,28" class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Max Days</label>
+                    <input type="number" id="rsiDaysFallback" value="200" min="10" max="500" class="form-input">
+                            </div>
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">
+                                    Overbought Level
+                                </label>
+                                <input type="number" id="rsiOverbought" value="70" min="50" max="90" step="1" class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">
+                                    Oversold Level
+                                </label>
+                    <input type="number" id="rsiOversold" value="30" min="10" max="50" step="1" class="form-input">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- EMA Parameters -->
+                    <div id="emaParams" class="hidden">
+                        <div class="form-grid mt-3">
+                            <div class="form-group">
+                    <label class="form-label">EMA Periods</label>
+                    <input type="text" id="emaPeriods" value="9,15,65,200" placeholder="9,21,50,200" class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Max Days</label>
+                    <input type="number" id="emaDaysFallback" value="200" min="10" max="500" class="form-input">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DMA Parameters -->
+                    <div id="dmaParams" class="hidden">
+                        <div class="form-grid mt-3">
+                            <div class="form-group">
+                    <label class="form-label">DMA Periods</label>
+                    <input type="text" id="dmaPeriods" value="10,20,50" placeholder="10,20,50" class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Max Days</label>
+                    <input type="number" id="dmaDaysFallback" value="200" min="10" max="500" class="form-input">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section with Tabs -->
+    <div id="resultsSection" class="panel hidden">
+            <div class="panel-header">
+                    <h2 class="panel-title">
+                    📉 Scanner Results
+                </h2>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button onclick="exportResults()" class="btn btn-secondary btn-sm">
+                        💾 CSV
+                    </button>
+                    <button onclick="clearAllResults()" class="btn btn-secondary btn-sm">
+                        🗑️ Clear All
+                    </button>
+                </div>
+            </div>
+
+            <div class="panel-content">
+
+            <!-- Scanner Tabs -->
+            <div class="tabs mb-3">
+                <nav class="tab-nav">
+                    <button id="rsiScannerTab" onclick="switchScannerTab('rsi')" class="tab-button active">
+                        🌊 RSI
+                    </button>
+                    <button id="emaScannerTab" onclick="switchScannerTab('ema')" class="tab-button">
+                        📈 EMA
+                    </button>
+                    <button id="dmaScannerTab" onclick="switchScannerTab('dma')" class="tab-button">
+                        📊 DMA
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Content Tabs (Table/Chart/Results) -->
+                    <div class="tabs mb-3">
+                <nav class="tab-nav">
+                        <button id="tableTab" onclick="switchContentTab('table')" class="tab-button active">
+                        📋 Table
+                    </button>
+                        <button id="chartTab" onclick="switchContentTab('chart')" class="tab-button">
+                        📈 Price Chart
+                    </button>
+                    <button id="resultsTab" onclick="switchContentTab('results')" class="tab-button">
+                        📊 Results
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Loading Indicator -->
+            <div id="loadingIndicator" class="hidden text-center mb-4">
+                <div class="loading" style="display: inline-block; margin-right: 0.5rem;"></div>
+                <span>Running scanner...</span>
+            </div>
+
+            <!-- Results Tab Content -->
+            <div id="resultsTabContent">
+                <div id="resultsDisplay">
+                    <pre id="resultsOutput" style="background-color: var(--bg-secondary); padding: 1rem; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; font-size: 0.8rem; min-height: 200px;"></pre>
+                </div>
+            </div>
+
+            <!-- Table Tab Content -->
+            <div id="tableTabContent" class="hidden">
+                <div class="mb-3" style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 class="panel-title">Formatted Results Table</h3>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <label class="form-label">Rows to show:</label>
+                        <select id="tableRowsSelect" onchange="updateTableDisplay()" class="form-select">
+                            <option value="10">10</option>
+                            <option value="25">25</option>
+                            <option value="50" selected>50</option>
+                            <option value="all">All</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="tableContainer" class="table-container">
+                    <table id="resultsTable" class="table">
+                        <thead>
+                            <tr id="tableHeaderRow">
+                                <th onclick="sortTable('Time')" id="timeHeader" class="sortable">
+                                    Time <span id="timeSortIcon"></span>
+                                </th>
+                                <th onclick="sortTable('Symbol')" class="sortable">
+                                    Symbol <span></span>
+                                </th>
+                                <th onclick="sortTable('CMP')" class="sortable">
+                                    CMP <span></span>
+                                </th>
+                                <!-- Dynamic indicator headers will be inserted here -->
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <!-- Table rows will be dynamically generated -->
+                        </tbody>
+                    </table>
+                    <div id="tableMessage" class="text-center text-muted" style="padding: 2rem;">
+                        No data available. Please run a scanner first.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart Tab Content -->
+            <div id="chartTabContent" class="hidden">
+                <div class="mb-3" style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 class="panel-title">Price Chart</h3>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <label class="form-label">Chart Type:</label>
+                        <select id="chartTypeSelect" onchange="changeChartType()" class="form-select">
+                            <option value="line">Line Chart</option>
+                            <option value="candlestick">Candlestick (Colored Points)</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="chartContainer">
+                    <div class="chart-container">
+                        <canvas id="priceChart" width="400" height="250"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+
+        <!-- Status Messages -->
+            <div id="statusMessage" class="hidden">
+            <div id="statusMessageInner" class="alert alert-info">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span>ℹ️</span>
+                    <div>
+                        <h3 style="margin: 0; font-size: 0.9rem; font-weight: 600;">Status</h3>
+                        <p id="statusText" style="margin: 0;"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentScanner = 'rsi';
+        let scannerResults = {
+            rsi: null,
+            ema: null,
+            dma: null
+        };
+        let scannerOutputs = {
+            rsi: '',
+            ema: '',
+            dma: ''
+        };
+        let scannerChartData = {
+            rsi: null,
+            ema: null,
+            dma: null
+        };
+        let chart = null;
+        let isDarkMode = false;
+        let availableSymbols = [];
+        let currentChartType = 'line'; // Default chart type
+        let currentSortColumn = 'Time';
+        let currentSortDirection = 'desc'; // Default to descending for time
+
+        // Initialize
+            document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing dashboard...');
+            console.log('Chart.js available:', typeof Chart !== 'undefined');
+            console.log('Financial chart available:', typeof Chart && Chart.controllers && Chart.controllers.candlestick);
+            
+            setupEventListeners();
+            showScannerParams('rsi');
+            loadDarkModePreference();
+            loadSymbols();
+            
+            // Initialize chart type selector
+            document.getElementById('chartTypeSelect').value = 'line';
+            
+            // Initialize scanner section as expanded
+            const scannerContent = document.getElementById('scannerContent');
+            // Content is visible by default
+        });
+
+        // Setup event listeners
+        function setupEventListeners() {
+            document.getElementById('scannerType').addEventListener('change', function(e) {
+                currentScanner = e.target.value;
+                showScannerParams(currentScanner);
+            });
+
+            // Dark mode toggle
+            document.getElementById('darkModeToggle').addEventListener('click', toggleDarkMode);
+        }
+
+        // Load symbols from JSON file
+        async function loadSymbols() {
+            try {
+                const response = await fetch('/api/symbols');
+                if (response.ok) {
+                    const data = await response.json();
+                    availableSymbols = data.symbols || [];
+                    populateSymbolDropdown();
+
+                    // Set default symbols in input if empty
+                    const symbolsInput = document.getElementById('symbols');
+                    if (!symbolsInput.value.trim()) {
+                        symbolsInput.value = availableSymbols.slice(0, 3).join(','); // Use first 3 symbols as default
+                    }
+                } else {
+                    console.warn('Could not load symbols from server, using default');
+                    availableSymbols = ['RELIANCE', 'TCS', 'HDFCBANK', 'ICICIBANK', 'INFY'];
+                    populateSymbolDropdown();
+                }
+            } catch (error) {
+                console.error('Error loading symbols:', error);
+                availableSymbols = ['RELIANCE', 'TCS', 'HDFCBANK', 'ICICIBANK', 'INFY'];
+                populateSymbolDropdown();
+            }
+        }
+
+        // Populate symbol dropdown
+        function populateSymbolDropdown() {
+            const symbolInput = document.getElementById('symbols');
+            // Convert to datalist for better UX
+            let datalist = document.getElementById('symbolList');
+            if (!datalist) {
+                datalist = document.createElement('datalist');
+                datalist.id = 'symbolList';
+                document.body.appendChild(datalist);
+                symbolInput.setAttribute('list', 'symbolList');
+            }
+
+            datalist.innerHTML = '';
+            availableSymbols.forEach(symbol => {
+                const option = document.createElement('option');
+                option.value = symbol;
+                datalist.appendChild(option);
+            });
+        }
+
+        // Show scanner-specific parameters
+        function showScannerParams(scannerType) {
+            // Hide all parameter sections
+            document.getElementById('rsiParams').classList.add('hidden');
+            document.getElementById('emaParams').classList.add('hidden');
+            document.getElementById('dmaParams').classList.add('hidden');
+
+            // Show selected scanner parameters
+            document.getElementById(scannerType + 'Params').classList.remove('hidden');
+        }
+
+        // Dark mode functionality
+        function toggleDarkMode() {
+            isDarkMode = !isDarkMode;
+            const toggleBtn = document.getElementById('darkModeToggle');
+
+            if (isDarkMode) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                toggleBtn.textContent = '☀️'; // Sun emoji
+                localStorage.setItem('darkMode', 'true');
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+                toggleBtn.textContent = '🌙'; // Moon emoji
+                localStorage.setItem('darkMode', 'false');
+            }
+        }
+
+        function loadDarkModePreference() {
+            const saved = localStorage.getItem('darkMode');
+            const toggleBtn = document.getElementById('darkModeToggle');
+
+            if (saved === 'true') {
+                isDarkMode = true;
+                document.documentElement.setAttribute('data-theme', 'dark');
+                toggleBtn.textContent = '☀️'; // Sun emoji
+            } else {
+                isDarkMode = false;
+                document.documentElement.removeAttribute('data-theme');
+                toggleBtn.textContent = '🌙'; // Moon emoji
+            }
+        }
+
+        // Run scanner
+        async function runScanner() {
+            const runButton = document.getElementById('runButton');
+            const originalText = runButton.innerHTML;
+
+            // Update button state
+            runButton.disabled = true;
+            runButton.innerHTML = '🔄 Running...';
+
+            const resultsSection = document.getElementById('resultsSection');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const resultsDisplay = document.getElementById('resultsDisplay');
+            const statusMessage = document.getElementById('statusMessage');
+            const statusText = document.getElementById('statusText');
+
+            // Show loading
+            resultsSection.classList.remove('hidden');
+            loadingIndicator.classList.remove('hidden');
+            resultsDisplay.style.display = 'none';
+            statusMessage.classList.remove('hidden');
+            statusText.textContent = `Running ${currentScanner.toUpperCase()} scanner...`;
+            statusMessage.classList.remove('hidden');
+            document.getElementById('statusMessageInner').className = 'alert alert-info';
+
+            try {
+                // Get parameters
+                const params = getScannerParams(currentScanner);
+
+                // Make API call to run scanner
+                const response = await fetch('/api/run-scanner', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        scanner: currentScanner,
+                        ...params
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // Display results
+                loadingIndicator.classList.add('hidden');
+                resultsDisplay.style.display = 'block';
+
+                if (data.output && data.output.trim()) {
+                    // Clean the output to remove any problematic characters
+                    let cleanOutput = data.output.replace(/[\u{1F600}-\u{1F64F}]/gu, '') // Remove emojis
+                                               .replace(/[\u{1F300}-\u{1F5FF}]/gu, '') // Remove symbols
+                                               .replace(/[\u{1F680}-\u{1F6FF}]/gu, '') // Remove transport
+                                               .replace(/[\u{1F1E0}-\u{1F1FF}]/gu, '') // Remove flags
+                                               .replace(/[\u{2600}-\u{26FF}]/gu, '');  // Remove misc symbols
+                    document.getElementById('resultsOutput').textContent = cleanOutput;
+                } else {
+                    document.getElementById('resultsOutput').textContent = 'No output received from scanner. Check server logs.';
+                }
+
+                // Store results for export
+                scannerResults[currentScanner] = data.results;
+                scannerOutputs[currentScanner] = data.output;
+                scannerChartData[currentScanner] = data.chartData;
+
+                // Update status
+                if (data.returncode === 0) {
+                    statusText.textContent = `${currentScanner.toUpperCase()} scanner completed successfully!`;
+                    document.getElementById('statusMessageInner').className = 'alert alert-success';
+                } else {
+                    statusText.textContent = `${currentScanner.toUpperCase()} scanner completed with errors (code: ${data.returncode})`;
+                    document.getElementById('statusMessageInner').className = 'alert alert-warning';
+                }
+
+                // Create chart if data available
+                if (data.chartData) {
+                    const chartType = document.getElementById('chartTypeSelect').value;
+                    createChart(data.chartData, chartType);
+                }
+
+                // Auto-refresh table if user is currently on table tab
+                const tableTab = document.getElementById('tableTab');
+                if (tableTab && tableTab.classList.contains('active')) {
+                    updateTableDisplay();
+                }
+
+            } catch (error) {
+                console.error('Error running scanner:', error);
+                loadingIndicator.classList.add('hidden');
+                statusText.textContent = `Error: ${error.message}`;
+                statusMessage.classList.remove('hidden');
+                document.getElementById('statusMessageInner').className = 'alert alert-danger';
+                document.getElementById('resultsOutput').textContent = `Scanner execution failed:\n${error.message}`;
+                resultsDisplay.style.display = 'block';
+            } finally {
+                // Reset button
+                runButton.disabled = false;
+                runButton.innerHTML = originalText;
+            }
+        }
+
+        // Get scanner parameters
+        function getScannerParams(scannerType) {
+            const baseParams = {
+                symbols: document.getElementById('symbols').value.split(',').map(s => s.trim()),
+                baseTimeframe: document.getElementById('baseTimeframe').value,
+                daysToList: parseInt(document.getElementById('daysToList').value)
+            };
+
+            switch (scannerType) {
+                case 'rsi':
+                    return {
+                        ...baseParams,
+                        rsiPeriods: document.getElementById('rsiPeriods').value.split(',').map(p => parseInt(p.trim())),
+                        rsiOverbought: parseInt(document.getElementById('rsiOverbought').value),
+                        rsiOversold: parseInt(document.getElementById('rsiOversold').value),
+                        daysFallbackThreshold: parseInt(document.getElementById('rsiDaysFallback').value)
+                    };
+                case 'ema':
+                    return {
+                        ...baseParams,
+                        emaPeriods: document.getElementById('emaPeriods').value.split(',').map(p => parseInt(p.trim())),
+                        daysFallbackThreshold: parseInt(document.getElementById('emaDaysFallback').value)
+                    };
+                case 'dma':
+                    return {
+                        ...baseParams,
+                        dmaPeriods: document.getElementById('dmaPeriods').value.split(',').map(p => parseInt(p.trim())),
+                        daysFallbackThreshold: parseInt(document.getElementById('dmaDaysFallback').value)
+                    };
+                default:
+                    return baseParams;
+            }
+        }
+
+        // Create chart
+        function createChart(chartData, chartType = 'line') {
+            console.log('Creating chart with type:', chartType);
+            console.log('Chart data:', chartData);
+            
+            const chartContainer = document.getElementById('chartContainer');
+            chartContainer.style.display = 'block';
+
+            const ctx = document.getElementById('priceChart').getContext('2d');
+
+            if (chart) {
+                chart.destroy();
+            }
+
+            // Apply dark mode colors if needed
+            const isDark = isDarkMode;
+            const textColor = isDark ? '#f9fafb' : '#374151';
+            const gridColor = isDark ? '#4b5563' : '#e5e7eb';
+
+            Chart.defaults.color = textColor;
+            Chart.defaults.borderColor = gridColor;
+
+            // Prepare datasets based on chart type
+            let processedDatasets = [];
+
+            if (chartType === 'candlestick') {
+                // Check if financial chart library is available
+                const hasFinancialChart = typeof Chart !== 'undefined' && Chart.controllers && Chart.controllers.candlestick;
+                console.log('Financial chart library available:', hasFinancialChart);
+                
+                const ohlcDataset = chartData.datasets.find(ds => ds.label === 'OHLC');
+                console.log('OHLC Dataset:', ohlcDataset);
+                
+                if (ohlcDataset && ohlcDataset.data && ohlcDataset.data.length > 0) {
+                    console.log('OHLC data sample:', ohlcDataset.data.slice(0, 3));
+                    
+                    if (hasFinancialChart) {
+                        // Use financial chart library
+                        const candlestickData = ohlcDataset.data.map((ohlc, index) => {
+                            if (Array.isArray(ohlc) && ohlc.length >= 4) {
+                                const [open, high, low, close] = ohlc;
+                                return {
+                                    x: index,
+                                    o: open,
+                                    h: high,
+                                    l: low,
+                                    c: close
+                                };
+                            }
+                            return null;
+                        }).filter(item => item !== null);
+                        
+                        processedDatasets.push({
+                            label: 'Candlestick',
+                            data: candlestickData,
+                            type: 'candlestick',
+                            color: {
+                                up: 'rgb(34, 197, 94)',
+                                down: 'rgb(239, 68, 68)',
+                                unchanged: 'rgb(59, 130, 246)'
+                            },
+                            borderColor: {
+                                up: 'rgb(34, 197, 94)',
+                                down: 'rgb(239, 68, 68)',
+                                unchanged: 'rgb(59, 130, 246)'
+                            }
+                        });
+                    } else {
+                        // Fallback: Create simple candlestick representation
+                        console.log('Using fallback candlestick implementation');
+                        
+                        const bodyData = [];
+                        const wickData = [];
+                        
+                        ohlcDataset.data.forEach((ohlc, index) => {
+                            if (Array.isArray(ohlc) && ohlc.length >= 4) {
+                                const [open, high, low, close] = ohlc;
+                                const isGreen = close >= open;
+                                const color = isGreen ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)';
+                                
+                                // Body (open-close)
+                                if (Math.abs(close - open) > 0.01) { // Only show body if there's a difference
+                                    const bodyTop = Math.max(open, close);
+                                    const bodyBottom = Math.min(open, close);
+                                    bodyData.push({
+                                        x: index,
+                                        y: bodyBottom + (bodyTop - bodyBottom) / 2,
+                                        height: bodyTop - bodyBottom,
+                                        color: color
+                                    });
+                                }
+                                
+                                // Wick (high-low) - simplified as points
+                                wickData.push({
+                                    x: index,
+                                    y: low,
+                                    color: color
+                                });
+                                wickData.push({
+                                    x: index,
+                                    y: high,
+                                    color: color
+                                });
+                            }
+                        });
+                        
+                        // Add body bars
+                        if (bodyData.length > 0) {
+                            processedDatasets.push({
+                                label: 'Candlestick Body',
+                                data: bodyData.map(d => d.y),
+                                backgroundColor: bodyData.map(d => d.color),
+                                borderColor: bodyData.map(d => d.color),
+                                type: 'bar',
+                                barThickness: 4,
+                                categoryPercentage: 0.6
+                            });
+                        }
+                        
+                        // Add wick points (simplified)
+                        processedDatasets.push({
+                            label: 'High-Low',
+                            data: wickData,
+                            type: 'scatter',
+                            pointStyle: 'rect',
+                            pointRadius: 2,
+                            backgroundColor: wickData.map(d => d.color),
+                            borderColor: wickData.map(d => d.color)
+                        });
+                    }
+
+                } else {
+                    console.warn('No OHLC data available, falling back to line chart');
+                    chartType = 'line';
+                }
+            }
+
+            if (chartType === 'line') {
+                // Filter out OHLC dataset and use line datasets
+                processedDatasets = chartData.datasets.filter(ds => ds.label !== 'OHLC');
+            }
+
+            // Add indicator datasets (RSI, EMA, DMA)
+            const indicatorDatasets = chartData.datasets.filter(ds => 
+                ds.label !== 'OHLC' && ds.label !== 'Close Price' && 
+                (ds.label.includes('RSI') || ds.label.includes('EMA') || ds.label.includes('DMA'))
+            );
+            processedDatasets = processedDatasets.concat(indicatorDatasets);
+
+            // Prepare scales configuration
+            const scales = {
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'Time',
+                        color: textColor
+                    },
+                    grid: {
+                        color: gridColor
+                    },
+                    ticks: {
+                        color: textColor
+                    }
+                },
+                y: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'Price',
+                        color: textColor
+                    },
+                    grid: {
+                        color: gridColor
+                    },
+                    ticks: {
+                        color: textColor
+                    }
+                }
+            };
+
+            // For candlestick charts, we might need different scale configuration
+            if (chartType === 'candlestick') {
+                // Candlestick charts work better with linear scales
+                scales.x.type = 'linear';
+                scales.x.position = 'bottom';
+            }
+
+            // Add secondary Y-axis for RSI
+            if (currentScanner === 'rsi') {
+                scales.y1 = {
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'RSI',
+                        color: textColor
+                    },
+                    grid: {
+                        drawOnChartArea: false,
+                        color: gridColor
+                    },
+                    ticks: {
+                        color: textColor,
+                        min: 0,
+                        max: 100
+                    }
+                };
+            }
+
+            chart = new Chart(ctx, {
+                type: (chartType === 'candlestick' && typeof Chart !== 'undefined' && Chart.controllers && Chart.controllers.candlestick) ? 'candlestick' : 'line',
+                data: {
+                    labels: (chartType === 'candlestick' && typeof Chart !== 'undefined' && Chart.controllers && Chart.controllers.candlestick) ? undefined : chartData.labels,
+                    datasets: processedDatasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: scales,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                color: textColor
+                            }
+                        }
+                    },
+                    elements: {
+                        point: {
+                            radius: 2,
+                            hoverRadius: 4
+                        },
+                        line: {
+                            borderWidth: 2
+                        }
+                    }
+                }
+            });
+        }
+
+        // Export results
+        function exportResults() {
+            if (!scannerResults[currentScanner]) {
+                alert('No results to export. Please run a scanner first.');
+                return;
+            }
+
+            const csvContent = convertToCSV(scannerResults[currentScanner]);
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', `${currentScanner}_results_${new Date().toISOString().split('T')[0]}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+
+        // Convert results to CSV
+        function convertToCSV(data) {
+            if (!data || !Array.isArray(data) || data.length === 0) {
+                return '';
+            }
+
+            const headers = Object.keys(data[0]);
+            const csvRows = [];
+
+            // Add headers
+            csvRows.push(headers.join(','));
+
+            // Add data rows
+            data.forEach(row => {
+                const values = headers.map(header => {
+                    const value = row[header];
+                    // Handle null/undefined values and escape commas/quotes
+                    if (value === null || value === undefined) {
+                        return '';
+                    }
+                    const stringValue = String(value);
+                    if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+                        return `"${stringValue.replace(/"/g, '""')}"`;
+                    }
+                    return stringValue;
+                });
+                csvRows.push(values.join(','));
+            });
+
+            return csvRows.join('\n');
+        }
+
+        // Clear results
+        function clearResults() {
+            document.getElementById('resultsSection').classList.add('hidden');
+            document.getElementById('statusMessage').classList.add('hidden');
+            document.getElementById('chartContainer').style.display = 'none';
+            document.getElementById('resultsOutput').textContent = '';
+            scannerResults = {
+                rsi: null,
+                ema: null,
+                dma: null
+            };
+
+            if (chart) {
+                chart.destroy();
+                chart = null;
+            }
+        }
+
+        // Clear all results and hide section
+        function clearAllResults() {
+            document.getElementById('resultsSection').classList.add('hidden');
+            document.getElementById('statusMessage').classList.add('hidden');
+            document.getElementById('chartContainer').style.display = 'none';
+            document.getElementById('resultsOutput').textContent = '';
+            scannerResults = {
+                rsi: null,
+                ema: null,
+                dma: null
+            };
+
+            // Reset tabs to default state
+            document.querySelectorAll('.tab-button').forEach(tab => tab.classList.remove('active'));
+            document.getElementById('tableTab').classList.add('active');
+
+            // Hide all content and show table
+            document.getElementById('resultsTabContent').classList.add('hidden');
+            document.getElementById('chartTabContent').classList.add('hidden');
+            document.getElementById('tableTabContent').classList.remove('hidden');
+        }
+
+        // Switch between scanner tabs
+        function switchScannerTab(scannerType) {
+            // Update current scanner
+            currentScanner = scannerType;
+
+            // Update scanner type dropdown
+            document.getElementById('scannerType').value = scannerType;
+
+            // Update tab styles - reset all
+            document.querySelectorAll('#rsiScannerTab, #emaScannerTab, #dmaScannerTab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Set active tab
+            const activeTab = document.getElementById(scannerType + 'ScannerTab');
+            if (activeTab) {
+                activeTab.classList.add('active');
+            }
+
+            // Show scanner parameters
+            showScannerParams(scannerType);
+
+            // Fetch stored results for this scanner
+            fetchStoredResults(scannerType);
+        }
+
+        // Fetch stored results from server
+        async function fetchStoredResults(scannerType) {
+            try {
+                const response = await fetch(`/api/scanner-results/${scannerType}`);
+                if (response.ok) {
+                    const data = await response.json();
+
+                    // Store results locally
+                    scannerResults[scannerType] = data.results;
+                    scannerOutputs[scannerType] = data.output || '';
+                    scannerChartData[scannerType] = data.chart_data;
+
+                    // Display results
+                    displayScannerResults(scannerType);
+
+                    // Show results section if we have data
+                    const resultsSection = document.getElementById('resultsSection');
+                    if (data.results || data.output) {
+                        resultsSection.classList.remove('hidden');
+                    }
+                } else {
+                    console.warn(`No stored results for ${scannerType}`);
+                    displayScannerResults(scannerType);
+                }
+            } catch (error) {
+                console.error('Error fetching stored results:', error);
+                displayScannerResults(scannerType);
+            }
+        }
+
+        // Switch between content tabs (Table/Chart/Results)
+        function switchContentTab(tab) {
+            const resultsTabContent = document.getElementById('resultsTabContent');
+            const tableTabContent = document.getElementById('tableTabContent');
+            const chartTabContent = document.getElementById('chartTabContent');
+            const resultsTab = document.getElementById('resultsTab');
+            const tableTab = document.getElementById('tableTab');
+            const chartTab = document.getElementById('chartTab');
+
+            // Reset all tab styles
+            resultsTab.classList.remove('active');
+            tableTab.classList.remove('active');
+            chartTab.classList.remove('active');
+
+            // Hide all content
+            resultsTabContent.classList.add('hidden');
+            tableTabContent.classList.add('hidden');
+            chartTabContent.classList.add('hidden');
+
+            if (tab === 'table') {
+                tableTab.classList.add('active');
+                tableTabContent.classList.remove('hidden');
+                // Update table display when switching to table tab
+                updateTableDisplay();
+            } else if (tab === 'chart') {
+                chartTab.classList.add('active');
+                chartTabContent.classList.remove('hidden');
+                // Recreate chart with current type when switching to chart tab
+                if (scannerChartData[currentScanner]) {
+                    const chartType = document.getElementById('chartTypeSelect').value;
+                    createChart(scannerChartData[currentScanner], chartType);
+                }
+            } else if (tab === 'results') {
+                resultsTab.classList.add('active');
+                resultsTabContent.classList.remove('hidden');
+            }
+        }
+
+        // Update table display
+        function updateTableDisplay() {
+            const output = scannerOutputs[currentScanner];
+            if (!output || !output.trim()) {
+                document.getElementById('tableMessage').textContent = 'No data available. Please run a scanner first.';
+                document.getElementById('tableMessage').classList.remove('hidden');
+                document.getElementById('resultsTable').classList.add('hidden');
+                return;
+            }
+
+            const tableData = parseScannerOutput(output);
+            if (tableData && tableData.length > 0) {
+                renderTable(tableData);
+                document.getElementById('tableMessage').classList.add('hidden');
+                document.getElementById('resultsTable').classList.remove('hidden');
+            } else {
+                document.getElementById('tableMessage').textContent = 'Unable to parse scanner output. Please check the Results tab.';
+                document.getElementById('tableMessage').classList.remove('hidden');
+                document.getElementById('resultsTable').classList.add('hidden');
+            }
+        }
+
+        // Parse scanner output into table data
+        function parseScannerOutput(output) {
+            const lines = output.split('\n').filter(line => line.trim());
+            const tableData = [];
+
+            // Find the table section (look for lines with | separators)
+            let inTable = false;
+            let headers = [];
+
+            for (const line of lines) {
+                if (line.includes('|') && !line.includes('=')) {
+                    const cells = line.split('|').map(cell => cell.trim()).filter(cell => cell);
+
+                    if (!inTable) {
+                        // This might be headers
+                        if (cells.length >= 3 && cells.some(cell => cell.toUpperCase().includes('TIME') || cell.toUpperCase().includes('SYMBOL') || cell.toUpperCase().includes('CMP'))) {
+                            headers = cells;
+                            inTable = true;
+                        }
+                    } else {
+                        // This is data
+                        if (cells.length === headers.length) {
+                            const row = {};
+                            headers.forEach((header, index) => {
+                                row[header] = cells[index] || '';
+                            });
+                            tableData.push(row);
+                        }
+                    }
+                } else if (line.includes('=') && inTable) {
+                    // End of table
+                    break;
+                }
+            }
+
+            return tableData;
+        }
+
+        // Render table with data
+        function renderTable(data) {
+            const tableBody = document.getElementById('tableBody');
+            const tableHeaderRow = document.getElementById('tableHeaderRow');
+
+            if (data.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="4" class="px-4 py-2 text-center muted-text">No data to display</td></tr>';
+                return;
+            }
+
+            // Sort data based on current sort settings
+            const sortedData = [...data].sort((a, b) => {
+                const aVal = a[currentSortColumn] || '';
+                const bVal = b[currentSortColumn] || '';
+
+                // Handle numeric sorting for CMP and indicator values
+                if (currentSortColumn === 'CMP' || currentSortColumn.includes('RSI') || currentSortColumn.includes('EMA') || currentSortColumn.includes('DMA')) {
+                    const aNum = parseFloat(aVal.replace(/[^\d.-]/g, '')) || 0;
+                    const bNum = parseFloat(bVal.replace(/[^\d.-]/g, '')) || 0;
+                    return currentSortDirection === 'asc' ? aNum - bNum : bNum - aNum;
+                }
+
+                // Handle time sorting
+                if (currentSortColumn === 'Time') {
+                    const aTime = new Date(aVal);
+                    const bTime = new Date(bVal);
+                    return currentSortDirection === 'asc' ? aTime - bTime : bTime - aTime;
+                }
+
+                // String sorting for other columns
+                return currentSortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            });
+
+            // Get headers from first row
+            const headers = Object.keys(sortedData[0]);
+
+            // Create separate header cells for each indicator
+            const indicatorCols = headers.filter(h => !['Time', 'Symbol', 'CMP'].includes(h));
+
+            // Clear existing indicator headers
+            const existingHeaders = tableHeaderRow.querySelectorAll('th');
+            existingHeaders.forEach((header, index) => {
+                if (index > 2) header.remove(); // Remove headers beyond Time, Symbol, CMP
+            });
+
+            // Add indicator headers as separate th elements
+            indicatorCols.forEach(col => {
+                const th = document.createElement('th');
+                th.className = 'sortable';
+                th.onclick = () => sortTable(col);
+                th.innerHTML = `${col} <span></span>`;
+                tableHeaderRow.appendChild(th);
+            });
+
+            // Update sort icons
+            updateSortIcons();
+
+            // Update colspan for empty message
+            const totalCols = 3 + indicatorCols.length; // Time, Symbol, CMP + indicators
+
+            // Limit rows based on selection
+            const rowsSelect = document.getElementById('tableRowsSelect');
+            const maxRows = rowsSelect.value === 'all' ? sortedData.length : parseInt(rowsSelect.value);
+            const displayData = sortedData.slice(0, maxRows);
+
+            // Generate table rows
+            const rows = displayData.map(row => {
+                const time = row['Time'] || '';
+                const symbol = row['Symbol'] || '';
+                const cmp = row['CMP'] || '';
+
+                // Create indicator cells
+                const indicatorCells = indicatorCols.map(col => {
+                    const value = row[col] || '';
+                    let cellClass = '';
+
+                    // Color coding for RSI values
+                    if (col.toUpperCase().includes('RSI')) {
+                        const numValue = parseFloat(value);
+                        if (!isNaN(numValue)) {
+                            const overboughtThreshold = parseInt(document.getElementById('rsiOverbought').value) || 70;
+                            const oversoldThreshold = parseInt(document.getElementById('rsiOversold').value) || 30;
+
+                            if (numValue >= overboughtThreshold) {
+                                cellClass = 'cell-overbought';
+                            } else if (numValue <= oversoldThreshold) {
+                                cellClass = 'cell-oversold';
+                            }
+                        }
+                    }
+
+                    // Color coding for EMA values with cross-period comparison
+                    if (col.toUpperCase().includes('EMA')) {
+                        const period = parseInt(col.replace('EMA', ''));
+                        const numValue = parseFloat(value);
+
+                        if (!isNaN(numValue)) {
+                            if (period === 9 || period === 15) {
+                                const ema9Value = row['EMA9'] ? parseFloat(row['EMA9']) : null;
+                                const ema15Value = row['EMA15'] ? parseFloat(row['EMA15']) : null;
+
+                                if (ema9Value !== null && ema15Value !== null && !isNaN(ema9Value) && !isNaN(ema15Value)) {
+                                    if (ema9Value > ema15Value) {
+                                        cellClass = 'cell-bull';
+                                    } else {
+                                        cellClass = 'cell-bear';
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Color coding for DMA values (compare with CMP)
+                    if (col.toUpperCase().includes('DMA')) {
+                        const numValue = parseFloat(value);
+                        const cmpValue = row['CMP'] ? parseFloat(row['CMP']) : null;
+
+                        if (!isNaN(numValue) && cmpValue !== null && !isNaN(cmpValue)) {
+                            if (numValue < cmpValue) {
+                                cellClass = 'cell-bull';
+                            } else {
+                                cellClass = 'cell-bear';
+                            }
+                        }
+                    }
+
+                    return `<td class="${cellClass}">${value}</td>`;
+                }).join('');
+
+                return `
+                    <tr>
+                        <td>${time}</td>
+                        <td>${symbol}</td>
+                        <td>${cmp}</td>
+                        ${indicatorCells}
+                    </tr>
+                `;
+            }).join('');
+
+            tableBody.innerHTML = rows;
+
+            // Update empty message colspan
+            const emptyRow = tableBody.querySelector('tr td[colspan]');
+            if (emptyRow) {
+                emptyRow.setAttribute('colspan', totalCols);
+            }
+        }
+
+        // Display stored results for a scanner
+        function displayScannerResults(scannerType) {
+            const resultsOutput = document.getElementById('resultsOutput');
+            const chartContainer = document.getElementById('chartContainer');
+            const resultsSection = document.getElementById('resultsSection');
+
+            // Display text output
+            if (scannerOutputs[scannerType] && scannerOutputs[scannerType].trim()) {
+                resultsOutput.textContent = scannerOutputs[scannerType];
+                resultsSection.classList.remove('hidden');
+            } else {
+                resultsOutput.textContent = `No results available for ${scannerType.toUpperCase()} scanner.\n\nClick "Run" to execute the scanner and generate results.`;
+                resultsSection.classList.add('hidden');
+            }
+
+            // Display chart if available
+            if (scannerChartData[scannerType]) {
+                const chartType = document.getElementById('chartTypeSelect').value;
+                createChart(scannerChartData[scannerType], chartType);
+                chartContainer.style.display = 'block';
+            } else {
+                chartContainer.style.display = 'none';
+                if (chart) {
+                    chart.destroy();
+                    chart = null;
+                }
+            }
+
+            // Update table display
+            updateTableDisplay();
+        }
+
+        // Toggle scanner parameters section
+        function toggleScannerSection() {
+            const content = document.getElementById('scannerContent');
+            const toggleBtn = document.getElementById('scannerToggleBtn');
+
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                toggleBtn.textContent = '▼';
+            } else {
+                content.classList.add('hidden');
+                toggleBtn.textContent = '▶️';
+            }
+        }
+
+        // Sort table by column
+        function sortTable(column) {
+            if (currentSortColumn === column) {
+                // Toggle sort direction if same column
+                currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                // New column, default to ascending except for Time which defaults to descending
+                currentSortColumn = column;
+                currentSortDirection = column === 'Time' ? 'desc' : 'asc';
+            }
+
+            // Update sort icons
+            updateSortIcons();
+
+            // Re-render table with new sort
+            const output = scannerOutputs[currentScanner];
+            if (output && output.trim()) {
+                const tableData = parseScannerOutput(output);
+                if (tableData && tableData.length > 0) {
+                    renderTable(tableData);
+                }
+            }
+        }
+
+        // Update sort icons in headers
+        function updateSortIcons() {
+            // Reset all sort icons
+            document.querySelectorAll('th span').forEach(icon => {
+                icon.innerHTML = '';
+            });
+
+            // Set active sort icon (simplified)
+            const activeHeader = document.getElementById(currentSortColumn.toLowerCase() + 'Header') || 
+                               document.querySelector(`[onclick="sortTable('${currentSortColumn}')"]`);
+            if (activeHeader) {
+                const icon = activeHeader.querySelector('span');
+                if (icon) {
+                    icon.innerHTML = currentSortDirection === 'asc' ? ' ↑' : ' ↓';
+                }
+            }
+        }
+    </script>
+</body>
+</html>
