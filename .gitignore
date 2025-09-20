@@ -133,7 +133,6 @@ dmypy.json
 data/
 *.csv
 *.xlsx
-*.json
 
 # Fetch historical (separate repository)
 fetch_historical/
