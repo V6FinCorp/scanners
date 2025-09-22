@@ -1,0 +1,14 @@
+{
+    "symbols": [
+        "ADANIENT"
+    ],
+    "dma_periods": [
+        10,
+        20,
+        50,
+        200
+    ],
+    "base_timeframe": "daily",
+    "days_to_list": 10,
+    "days_fallback_threshold": 1600
+}
