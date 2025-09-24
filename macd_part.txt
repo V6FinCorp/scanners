@@ -1,0 +1,35 @@
+            if (analyses.dma) {
+                // DMA signal logic
+                const cmp = parseFloat(analyses.dma['CMP']) || 0;
+                let aboveCount = 0, belowCount = 0;
+                Object.keys(analyses.dma).forEach(key => {
+                    if (key.toUpperCase().includes('DMA')) {
+                        const dmaValue = parseFloat(analyses.dma[key]);
+                        if (!isNaN(dmaValue)) {
+                            if (cmp > dmaValue) aboveCount++;
+                            else belowCount++;
+                        }
+                    }
+                });
+                
+                if (aboveCount > belowCount) signals.push('BUY');
+                else if (belowCount > aboveCount) signals.push('SELL');
+                else signals.push('HOLD');
+            }
+            
+            if (analyses.macd) {
+                // MACD signal logic
+                const macdValue = parseFloat(analyses.macd['MACD']) || 0;
+                const signalValue = parseFloat(analyses.macd['Signal']) || 0;
+                const histogramValue = parseFloat(analyses.macd['Histogram']) || 0;
+                
+                if (macdValue > signalValue && histogramValue > 0) {
+                    signals.push('BUY');
+                } else if (macdValue < signalValue && histogramValue < 0) {
+                    signals.push('SELL');
+                } else {
+                    signals.push('HOLD');
+                }
+            }
+            
+            // Overall consensus

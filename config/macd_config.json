@@ -1,0 +1,13 @@
+{
+    "symbols": [
+        "EICHERMOT"
+    ],
+    "fast_length": 12,
+    "slow_length": 26,
+    "signal_length": 9,
+    "oscillator_ma_type": "EMA",
+    "signal_ma_type": "EMA",
+    "base_timeframe": "15mins",
+    "days_to_list": 30,
+    "days_fallback_threshold": 300
+}

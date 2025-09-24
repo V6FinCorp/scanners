@@ -1,0 +1,14 @@
+{
+    "symbols": [
+        "EICHERMOT"
+    ],
+    "dma_periods": [
+        10,
+        20,
+        50,
+        200
+    ],
+    "base_timeframe": "15mins",
+    "days_to_list": 30,
+    "days_fallback_threshold": 1600
+}

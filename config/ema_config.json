@@ -1,0 +1,13 @@
+{
+    "symbols": [
+        "EICHERMOT"
+    ],
+    "ema_periods": [
+        9,
+        15,
+        20
+    ],
+    "base_timeframe": "daily",
+    "days_to_list": 10,
+    "days_fallback_threshold": 200
+}

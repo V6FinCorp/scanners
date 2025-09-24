@@ -1,0 +1,11 @@
+{
+    "symbols": [
+        "EICHERMOT"
+    ],
+    "ma_window": 20,
+    "multiplier": 2.0,
+    "min_volume": 100000,
+    "base_timeframe": "daily",
+    "days_to_list": 30,
+    "days_fallback_threshold": 30
+}
