@@ -10,6 +10,52 @@
     <link rel="stylesheet" href="simple-theme.css">
 </head>
 <body>
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+    <!-- Inline styles for toaster (kept minimal; no external dependency) -->
+    <style>
+        .toast-container { position: fixed; right: 16px; bottom: 16px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+        .toast { min-width: 280px; max-width: 420px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border-color, #e5e7eb); background: var(--bg-primary, #fff); color: var(--text-primary, #111827); box-shadow: 0 6px 20px rgba(0,0,0,0.2); pointer-events: auto; display: grid; grid-template-columns: 20px 1fr auto; gap: 10px; align-items: start; animation: toast-slide-in .25s ease-out; }
+        .toast .icon { font-size: 14px; margin-top: 2px; }
+        .toast .title { font-weight: 600; margin-bottom: 2px; }
+        .toast .msg { font-size: .9rem; opacity: .9; }
+        .toast .meta { font-size: .8rem; opacity: .7; margin-top: 4px; }
+        .toast .close { cursor: pointer; opacity: .6; }
+        .toast.success { border-left: 4px solid var(--success, #16a34a); }
+        .toast.error   { border-left: 4px solid var(--danger, #dc2626); }
+        .toast.info    { border-left: 4px solid var(--accent, #2563eb); }
+        @keyframes toast-slide-in { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    /* Status Chips */
+    .status-chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 16px; border-top: 1px solid var(--border-color, #e5e7eb); background: var(--bg-primary, #fff); justify-content: flex-end; align-items: center; position: relative; transition: max-height .2s ease, padding .2s ease, opacity .2s ease; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid var(--border-color, #e5e7eb); background: var(--bg-secondary, #f9fafb); color: var(--text-secondary, #374151); }
+    .chip .dot { width: 8px; height: 8px; border-radius: 999px; background: #9ca3af; }
+    .chip .label { letter-spacing: .02em; }
+    .chip .time { font-weight: 500; opacity: .8; }
+    .chip.idle   { background: var(--bg-secondary, #f3f4f6); }
+    .chip.run    { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+    .chip.ok     { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
+    .chip.err    { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+    .chip.run .dot { background: #2563eb; animation: chip-pulse 1s infinite ease-in-out; }
+    .chip.ok  .dot { background: #10b981; }
+    .chip.err .dot { background: #ef4444; }
+    .chip.idle .dot { background: #9ca3af; }
+    @keyframes chip-pulse { 0% { transform: scale(1); opacity: .9; } 50% { transform: scale(1.4); opacity: .6; } 100% { transform: scale(1); opacity: .9; } }
+    /* Chip bar accordion */
+    .status-chips.collapsed { max-height: 0; padding-top: 0; padding-bottom: 0; border-top: 0; opacity: 0; overflow: hidden; }
+    .chip-toggle { margin-right: auto; border: 1px solid var(--border-color, #e5e7eb); background: var(--bg-secondary, #f3f4f6); color: var(--text-secondary, #374151); border-radius: 999px; padding: 6px 10px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+    .chip-toggle .icon { font-size: 12px; }
+
+    /* Analysis section accordion */
+    .analysis-header { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+    .accordion-toggle { border: 1px solid var(--border-color, #e5e7eb); background: var(--bg-secondary, #f3f4f6); color: var(--text-secondary, #374151); border-radius: 8px; padding: 4px 8px; cursor: pointer; }
+    #analysisSection.collapsed .analysis-content { display: none !important; }
+    /* Card accordions */
+    .analysis-card .card-header, .chart-card .card-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+    .analysis-card .card-header .chev, .chart-card .card-header .chev { opacity: .7; }
+    .analysis-card.collapsed .card-body, .chart-card.collapsed .card-body { display: none !important; }
+    
+    </style>
     <!-- Header -->
     <header class="header">
         <div class="header-content">
@@ -46,7 +92,15 @@
                     <i class="fas fa-moon"></i>
                 </button>
             </div>
-        </div>
+    </div>
+    <!-- Status chips row with toggle -->
+    <div id="statusChipBar" class="status-chips" aria-label="Scanner status">
+        <button id="chipBarToggle" class="chip-toggle" title="Toggle status">
+            <span class="icon"><i class="fas fa-chevron-up"></i></span>
+            Status
+        </button>
+        <!-- chips render on the right -->
+    </div>
     </header>
 
     <!-- Sidebar Toggle Button -->
@@ -434,6 +488,107 @@
         // Flag to track if we should use runtime config or base config
         let useRuntimeConfig = false;
 
+        // --- Toaster + Run Tracker ---------------------------------------------------
+        function pushToast({ title, message, type = 'info', meta = '', timeout = 4000 }) {
+            try {
+                const wrap = document.getElementById('toastContainer');
+                if (!wrap) return null;
+                const div = document.createElement('div');
+                div.className = `toast ${type}`;
+                const icon = type === 'success' ? '✅' : (type === 'error' ? '❌' : 'ℹ️');
+                div.innerHTML = `
+                    <div class="icon">${icon}</div>
+                    <div>
+                        <div class="title">${title || ''}</div>
+                        <div class="msg">${message || ''}</div>
+                        ${meta ? `<div class="meta">${meta}</div>` : ''}
+                    </div>
+                    <div class="close" title="Close" onclick="this.closest('.toast').remove()">✖</div>
+                `;
+                wrap.appendChild(div);
+                if (timeout > 0) setTimeout(() => div.remove(), timeout);
+                return div;
+            } catch (_) { return null; }
+        }
+
+        const RunTracker = (() => {
+            let run = null;
+            const names = ['rsi','ema','dma','macd','volume'];
+            function start(symbol, context = 'Full run') {
+                run = { id: Date.now(), symbol, context, t0: performance.now(), steps: {}, aborted: false };
+                pushToast({ title: 'Run started', message: `${context} • ${symbol}`, type: 'info', timeout: 2500 });
+                renderStatusChips(names); // reset chips to idle
+                return run.id;
+            }
+            function markStart(name) {
+                if (!run) return;
+                run.steps[name] = { t0: performance.now(), ok: false, err: null };
+                pushToast({ title: name.toUpperCase(), message: 'Started…', type: 'info', timeout: 1500 });
+                updateStatusChip(name, 'run');
+            }
+            function markEnd(name, ok, errMsg = null) {
+                if (!run || !run.steps[name]) return;
+                const step = run.steps[name];
+                step.t1 = performance.now();
+                step.ok = !!ok;
+                step.err = errMsg;
+                const ms = Math.max(0, step.t1 - step.t0);
+                const meta = `Time: ${ms.toFixed(0)} ms`;
+                pushToast({ title: name.toUpperCase(), message: ok ? 'Completed' : (errMsg || 'Failed'), meta, type: ok ? 'success' : 'error', timeout: ok ? 2500 : 6000 });
+                if (ms >= 3000 && ok) {
+                    pushToast({ title: `${name.toUpperCase()} slow`, message: 'Execution ≥ 3s', meta, type: 'info', timeout: 3500 });
+                }
+                updateStatusChip(name, ok ? 'ok' : 'err', `${ms.toFixed(0)} ms`);
+            }
+            function complete() {
+                if (!run) return;
+                const t1 = performance.now();
+                const totalMs = Math.max(0, t1 - run.t0);
+                const okCount = names.reduce((n,k)=> n + (run.steps[k]?.ok ? 1 : 0), 0);
+                const details = names.map(k => {
+                    const s = run.steps[k];
+                    const ms = s?.t1 && s?.t0 ? `${(s.t1 - s.t0).toFixed(0)} ms` : '--';
+                    const st = s?.ok ? 'OK' : (s?.err ? 'ERR' : '--');
+                    return `${k.toUpperCase()}: ${ms} ${st}`;
+                }).join(' • ');
+                pushToast({ title: 'Run complete', message: `${okCount}/5 OK • Total ${totalMs.toFixed(0)} ms`, meta: details, type: okCount === 5 ? 'success' : 'error', timeout: 8000 });
+                run = null;
+            }
+            function isActive() { return !!run; }
+            function abort() { if (run) run.aborted = true; }
+            return { start, markStart, markEnd, complete, isActive, abort };
+        })();
+
+        // --- Status Chips (UI) -------------------------------------------------------
+        function renderStatusChips(names) {
+            const bar = document.getElementById('statusChipBar');
+            if (!bar) return;
+            const labels = {
+                rsi: 'RSI', ema: 'EMA', dma: 'DMA', macd: 'MACD', volume: 'VOLUME'
+            };
+            bar.innerHTML = '';
+            names.forEach(name => {
+                const chip = document.createElement('div');
+                chip.className = 'chip idle';
+                chip.id = `chip-${name}`;
+                chip.innerHTML = `
+                    <span class="dot" aria-hidden="true"></span>
+                    <span class="label">${labels[name] || name.toUpperCase()}</span>
+                    <span class="time" id="chip-time-${name}"></span>
+                `;
+                bar.appendChild(chip);
+            });
+        }
+
+        function updateStatusChip(name, state, timeText = '') {
+            const el = document.getElementById(`chip-${name}`);
+            const timeEl = document.getElementById(`chip-time-${name}`);
+            if (!el) return;
+            el.classList.remove('idle','run','ok','err');
+            el.classList.add(state);
+            if (timeEl) timeEl.textContent = timeText ? `• ${timeText}` : '';
+        }
+
         // Sidebar toggle functionality
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
@@ -534,6 +689,8 @@
             setupEventListeners();
             showScannerParams('rsi');
             loadDarkModePreference();
+            // Initialize status chips bar
+            renderStatusChips(['rsi','ema','dma','macd','volume']);
             
             // Load config and auto-run scanner with defaults
             initializeDashboard();
@@ -549,6 +706,65 @@
             // Start updating date/time
             updateDateTime();
             setInterval(updateDateTime, 1000); // Update every second
+
+            // Accordions: chip bar toggle
+            const chipToggle = document.getElementById('chipBarToggle');
+            const chipBar = document.getElementById('statusChipBar');
+            if (chipToggle && chipBar) {
+                chipToggle.addEventListener('click', () => {
+                    chipBar.classList.toggle('collapsed');
+                    const icon = chipToggle.querySelector('i');
+                    if (icon) {
+                        if (chipBar.classList.contains('collapsed')) {
+                            icon.classList.remove('fa-chevron-up');
+                            icon.classList.add('fa-chevron-down');
+                        } else {
+                            icon.classList.remove('fa-chevron-down');
+                            icon.classList.add('fa-chevron-up');
+                        }
+                    }
+                });
+            }
+
+            // Accordion: analysis section
+            const analysisHeader = document.querySelector('#analysisSection .analysis-header');
+            if (analysisHeader) {
+                const btn = document.createElement('button');
+                btn.className = 'accordion-toggle';
+                btn.innerHTML = '<i class="fas fa-chevron-up"></i>';
+                btn.title = 'Collapse/expand';
+                btn.addEventListener('click', () => {
+                    const section = document.getElementById('analysisSection');
+                    section.classList.toggle('collapsed');
+                    const icon = btn.querySelector('i');
+                    if (icon) {
+                        if (section.classList.contains('collapsed')) {
+                            icon.classList.remove('fa-chevron-up');
+                            icon.classList.add('fa-chevron-down');
+                        } else {
+                            icon.classList.remove('fa-chevron-down');
+                            icon.classList.add('fa-chevron-up');
+                        }
+                    }
+                });
+                analysisHeader.appendChild(btn);
+            }
+
+            // Delegated: collapse/expand analysis-card and chart-card on header click
+            document.body.addEventListener('click', (e) => {
+                const hdr = e.target.closest('.analysis-card .card-header, .chart-card .card-header');
+                if (hdr) {
+                    const card = hdr.closest('.analysis-card, .chart-card');
+                    if (card) {
+                        card.classList.toggle('collapsed');
+                        const chev = hdr.querySelector('.chev i');
+                        if (chev) {
+                            chev.classList.toggle('fa-chevron-up');
+                            chev.classList.toggle('fa-chevron-down');
+                        }
+                    }
+                }
+            });
         });
 
         // Setup event listeners
@@ -639,6 +855,9 @@
                 
                 // Load all indicator defaults
                 await loadIndicatorDefaults();
+
+                // Health check summary toast
+                pushToast({ title: 'Health check', message: 'Configs & symbols loaded', type: 'success', timeout: 3000 });
                 
                 // Longer delay to ensure form is fully populated
                 setTimeout(async () => {
@@ -652,10 +871,12 @@
                         return;
                     }
                     
-                    // Run all four scanners sequentially with delays
+                    // Run all scanners sequentially with delays
                     const scanners = ['rsi', 'ema', 'dma', 'macd', 'volume'];
                     const originalScanner = currentScanner;
                     
+                    // Start a tracked run for auto mode
+                    RunTracker.start(selectedSymbol, 'Auto run');
                     for (let i = 0; i < scanners.length; i++) {
                         const scanner = scanners[i];
                         console.log(`Auto-running ${scanner.toUpperCase()} scanner...`);
@@ -681,6 +902,7 @@
                     displayScannerResults('rsi');
                     
                     console.log('All scanners auto-run completed!');
+                    RunTracker.complete();
                     
                 }, 2000);
                 
@@ -705,18 +927,21 @@
                     if (availableSymbols.length > 0) {
                         document.getElementById('symbols').value = availableSymbols[0];
                         console.log('Set default symbol to:', availableSymbols[0]);
+                        pushToast({ title: 'Symbols loaded', message: `${availableSymbols.length} symbols available`, type: 'success', timeout: 2500 });
                     }
                 } else {
                     console.warn('Could not load symbols from config, status:', response.status);
                     availableSymbols = ['RELIANCE', 'TCS', 'HDFCBANK', 'ICICIBANK', 'INFY', 'ITC'];
                     populateSymbolDropdown();
                     document.getElementById('symbols').value = availableSymbols[0];
+                    pushToast({ title: 'Symbols fallback', message: 'Using default symbols list', type: 'info', timeout: 3500 });
                 }
             } catch (error) {
                 console.error('Error loading symbols from config:', error);
                 availableSymbols = ['RELIANCE', 'TCS', 'HDFCBANK', 'ICICIBANK', 'INFY', 'ITC'];
                 populateSymbolDropdown();
                 document.getElementById('symbols').value = availableSymbols[0];
+                pushToast({ title: 'Symbols error', message: 'Failed to load config; defaults applied', type: 'error', timeout: 5000 });
             }
         }
 
@@ -777,11 +1002,14 @@
                     }
                     
                     console.log('RSI config loaded successfully');
+                    pushToast({ title: 'RSI config', message: 'Loaded successfully', type: 'success', timeout: 2000 });
                 } else {
                     console.warn('Failed to load RSI config, status:', rsiResponse.status);
+                    pushToast({ title: 'RSI config', message: `Load failed (status ${rsiResponse.status})`, type: 'error', timeout: 5000 });
                 }
             } catch (error) {
                 console.error('Error loading RSI config:', error);
+                pushToast({ title: 'RSI config', message: 'Error loading config', type: 'error', timeout: 5000 });
             }
 
             // Load EMA defaults
@@ -797,11 +1025,14 @@
                     document.getElementById('emaDaysFallback').value = emaConfig.days_fallback_threshold || '';
                     
                     console.log('EMA config loaded successfully');
+                    pushToast({ title: 'EMA config', message: 'Loaded successfully', type: 'success', timeout: 2000 });
                 } else {
                     console.warn('Failed to load EMA config, status:', emaResponse.status);
+                    pushToast({ title: 'EMA config', message: `Load failed (status ${emaResponse.status})`, type: 'error', timeout: 5000 });
                 }
             } catch (error) {
                 console.error('Error loading EMA config:', error);
+                pushToast({ title: 'EMA config', message: 'Error loading config', type: 'error', timeout: 5000 });
             }
 
             // Load DMA defaults
@@ -817,11 +1048,14 @@
                     document.getElementById('dmaDaysFallback').value = dmaConfig.days_fallback_threshold || '';
                     
                     console.log('DMA config loaded successfully');
+                    pushToast({ title: 'DMA config', message: 'Loaded successfully', type: 'success', timeout: 2000 });
                 } else {
                     console.warn('Failed to load DMA config, status:', dmaResponse.status);
+                    pushToast({ title: 'DMA config', message: `Load failed (status ${dmaResponse.status})`, type: 'error', timeout: 5000 });
                 }
             } catch (error) {
                 console.error('Error loading DMA config:', error);
+                pushToast({ title: 'DMA config', message: 'Error loading config', type: 'error', timeout: 5000 });
             }
 
             // Load MACD defaults
@@ -841,11 +1075,14 @@
                     document.getElementById('macdDaysFallback').value = macdConfig.days_fallback_threshold || '';
                     
                     console.log('MACD config loaded successfully');
+                    pushToast({ title: 'MACD config', message: 'Loaded successfully', type: 'success', timeout: 2000 });
                 } else {
                     console.warn('Failed to load MACD config, status:', macdResponse.status);
+                    pushToast({ title: 'MACD config', message: `Load failed (status ${macdResponse.status})`, type: 'error', timeout: 5000 });
                 }
             } catch (error) {
                 console.error('Error loading MACD config:', error);
+                pushToast({ title: 'MACD config', message: 'Error loading config', type: 'error', timeout: 5000 });
             }
             
             console.log('Indicator defaults loading completed');
@@ -1096,6 +1333,11 @@
             const scanners = ['rsi', 'ema', 'dma', 'macd', 'volume'];
             const originalScanner = currentScanner;
             const analysisResults = {};
+
+            // Start a tracked run for manual/auto invocation
+            if (!RunTracker.isActive()) {
+                RunTracker.start(selectedSymbol, isAutoRun ? 'Auto run' : 'Manual run');
+            }
             
             // Update progress for each scanner
             for (let i = 0; i < scanners.length; i++) {
@@ -1163,6 +1405,7 @@
                 }, 200);
             }
             
+            try { RunTracker.isActive() && RunTracker.complete(); } catch(_){}
             return analysisResults;
         }
         
@@ -1286,6 +1529,10 @@
             document.getElementById('statusMessageInner').className = 'alert alert-info';
 
             try {
+                // Mark scanner start if a run is active
+                if (RunTracker && RunTracker.isActive) {
+                    try { RunTracker.isActive() && RunTracker.markStart(currentScanner); } catch(_){}
+                }
                 // Get parameters
                 const params = getScannerParams(currentScanner);
 
@@ -1340,9 +1587,11 @@
                 if (data.returncode === 0) {
                     statusText.textContent = `${currentScanner.toUpperCase()} scanner completed successfully!`;
                     document.getElementById('statusMessageInner').className = 'alert alert-success';
+                    try { RunTracker.isActive() && RunTracker.markEnd(currentScanner, true); } catch(_){}
                 } else {
                     statusText.textContent = `${currentScanner.toUpperCase()} scanner completed with errors (code: ${data.returncode})`;
                     document.getElementById('statusMessageInner').className = 'alert alert-warning';
+                    try { RunTracker.isActive() && RunTracker.markEnd(currentScanner, false, `Return code ${data.returncode}`); } catch(_){}
                 }
 
                 // Create chart if data available
@@ -1400,6 +1649,7 @@
                 document.getElementById('statusMessageInner').className = 'alert alert-danger';
                 document.getElementById('resultsOutput').textContent = `Scanner execution failed:\n${error.message}`;
                 resultsDisplay.style.display = 'block';
+                try { RunTracker.isActive() && RunTracker.markEnd(currentScanner, false, error.message); } catch(_){}
             } finally {
                 // Reset button
                 runButton.disabled = false;
